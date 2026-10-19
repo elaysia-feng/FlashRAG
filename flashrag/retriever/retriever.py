@@ -25,6 +25,7 @@ def cache_manager(func):
     Decorator used for retrieving document cache.
     With the decorator, The retriever can store each retrieved document as a file and reuse it.
     """
+    # 缓存装饰器：只补查未命中的查询，并按原查询顺序组装文档和分数。
 
     @functools.wraps(func)
     def wrapper(self, query=None, num=None, return_score=False):
@@ -45,6 +46,7 @@ def cache_manager(func):
                         warnings.warn(f"The number of cached retrieval results is less than topk ({num})")
                     cache_res = cache_res[:num]
                     # separate the doc score
+                    # 分离文档与对应分数。
                     doc_scores = [item["score"] for item in cache_res]
                     cache_results.append((cache_res, doc_scores))
                 else:
@@ -53,6 +55,7 @@ def cache_manager(func):
 
             if no_cache_query != []:
                 # use batch search without decorator
+                # 绕过缓存装饰器，直接调用带重排的批量检索。
                 no_cache_results, no_cache_scores = self._batch_search_with_rerank(no_cache_query, num, True)
                 no_cache_idx = 0
                 for idx, res in enumerate(cache_results):
@@ -76,6 +79,7 @@ def cache_manager(func):
 
         if self.save_cache:
             # merge result and score
+            # 合并文档结果与分数。
             save_results = results.copy()
             save_scores = scores.copy()
             if isinstance(query, str):
@@ -100,6 +104,7 @@ def rerank_manager(func):
     """
     Decorator used for reranking retrieved documents.
     """
+    # 重排装饰器：先取得召回结果，再按开关调用重排模型。
 
     @functools.wraps(func)
     def wrapper(self, query, num=None, return_score=False):
@@ -119,6 +124,7 @@ def rerank_manager(func):
 
 class BaseRetriever:
     """Base object for all retrievers."""
+    # 检索器配置及查询接口基类，实际召回由子类实现。
 
     def __init__(self, config):
         self._config = config
@@ -187,6 +193,7 @@ class BaseRetriever:
                 text: (if provided)
 
         """
+        # 检索与当前查询相关的文档；具体实现决定是否附带分数。
 
         pass
 
@@ -202,6 +209,7 @@ class BaseRetriever:
 
 class BaseTextRetriever(BaseRetriever):
     """Base text retriever."""
+    # 为文本检索入口组合缓存和重排逻辑。
 
     def __init__(self, config):
         super().__init__(config)
@@ -227,6 +235,7 @@ class BaseTextRetriever(BaseRetriever):
 
 class BM25Retriever(BaseTextRetriever):
     r"""BM25 retriever based on pre-built pyserini index."""
+    # 基于词项匹配召回，按配置使用 BM25 后端。
 
     def __init__(self, config, corpus=None):
         super().__init__(config)
@@ -238,6 +247,7 @@ class BM25Retriever(BaseTextRetriever):
     def load_model_corpus(self, corpus):
         if self.backend == "pyserini":
             # Warning: the method based on pyserini will be deprecated
+            # 原注释提示基于 Pyserini 的方法将被弃用；此处保留原有说明。
             from pyserini.search.lucene import LuceneSearcher
 
             self.searcher = LuceneSearcher(self.index_path)
@@ -275,6 +285,7 @@ class BM25Retriever(BaseTextRetriever):
 
     def _check_contain_doc(self):
         r"""Check if the index contains document content"""
+        # 检查 BM25 索引是否自带文档原文，以决定是否另读语料。
         return self.searcher.doc(0).raw() is not None
 
     def _search(self, query: str, num: int = None, return_score=False) -> List[Dict[str, str]]:
@@ -329,6 +340,7 @@ class BM25Retriever(BaseTextRetriever):
     def _batch_search(self, query, num: int = None, return_score=False):
         if self.backend == "pyserini":
             # TODO: modify batch method
+            # 待办：调整批量检索方式。
             results = []
             scores = []
             for _query in query:
@@ -353,6 +365,7 @@ class BM25Retriever(BaseTextRetriever):
 
 class DenseRetriever(BaseTextRetriever):
     r"""Dense retriever based on pre-built faiss index."""
+    # 将查询编码为稠密向量，在 FAISS 索引中查找相关语料。
 
     def __init__(self, config: dict, corpus=None):
         super().__init__(config)
@@ -400,6 +413,7 @@ class DenseRetriever(BaseTextRetriever):
             )
         else:
             # check pooling method
+            # 检查池化方式。
             self._check_pooling_method(self.retrieval_model_path, self.pooling_method)
             self.encoder = Encoder(
                 model_name=self.retrieval_method,
@@ -413,6 +427,7 @@ class DenseRetriever(BaseTextRetriever):
     def _check_pooling_method(self, model_path, pooling_method):
         try:
             # read pooling method from 1_Pooling/config.json
+            # 从 1_Pooling/config.json 读取模型声明的池化方式。
             pooling_config = json.load(open(os.path.join(model_path, "1_Pooling/config.json")))
             for k, v in pooling_config.items():
                 if k.startswith("pooling_mode") and v == True:
@@ -423,6 +438,7 @@ class DenseRetriever(BaseTextRetriever):
                         detect_pooling_method = "cls"
                     else:
                         # raise warning: not implemented pooling method
+                        # 对尚未实现的池化方式发出警告。
                         warnings.warn(f"Pooling method {detect_pooling_method} is not implemented.", UserWarning)
                         detect_pooling_method = "mean"
                     break
@@ -469,6 +485,7 @@ class DenseRetriever(BaseTextRetriever):
 
 class MultiModalRetriever(BaseRetriever):
     r"""Multi-modal retriever based on pre-built faiss index."""
+    # 使用 CLIP 等编码能力在文本或图片索引中检索。
 
     def __init__(self, config: dict, corpus=None):
         super().__init__(config)
@@ -575,6 +592,7 @@ class MultiModalRetriever(BaseRetriever):
 class MultiRetrieverRouter:
     def __init__(self, config):
         self.merge_method = config["multi_retriever_setting"].get("merge_method", "concat")  # concat/rrf/rerank
+        # 多路结果融合支持拼接、RRF 或重排。
         self.final_topk = config["multi_retriever_setting"].get("topk", 5)
         self.retriever_list = self.load_all_retriever(config)
         self.config = config
@@ -587,6 +605,7 @@ class MultiRetrieverRouter:
     def load_all_retriever(self, config):
         retriever_config_list = config["multi_retriever_setting"]["retriever_list"]
         # use the same corpus for efficient memory usage
+        # 复用相同语料，减少内存占用。
         all_corpus_dict = {}
         retriever_list = []
         for retriever_config in retriever_config_list:
@@ -613,6 +632,7 @@ class MultiRetrieverRouter:
                     all_corpus_dict[corpus_path] = corpus
 
                 # judge modality
+                # 判断输入模态。
                 from transformers import AutoConfig
 
                 try:
@@ -635,7 +655,9 @@ class MultiRetrieverRouter:
         corpus_path = retriever.corpus_path
         is_multimodal = isinstance(retriever, MultiModalRetriever)
         # for naive search, result is a list of dict, each repr a doc
+        # 单条检索的结果是字典列表，每个字典表示一篇文档。
         # for batch search, result is a list of list, each repr a doc list(per query)
+        # 批量检索的结果是嵌套列表，每个内层列表对应一条查询的文档。
         for item in result:
             if isinstance(item, list):
                 for _item in item:
@@ -705,6 +727,7 @@ class MultiRetrieverRouter:
         original result like: [bm25-d1, bm25-d2, e5-d1, e5-d2]
 
         """
+        # 把各检索器返回的结果重新整理为以查询为单位的分组。
 
         retriever_num = len(retriever_list)
         query_num = len(result_list) // retriever_num
@@ -723,8 +746,10 @@ class MultiRetrieverRouter:
 
     def post_process_result(self, query: Union[str, list], result_list, score_list, num):
         # based on self.merge_method
+        # 根据 merge_method 选择融合方式。
         if self.merge_method == "concat":
             # remove duplicate doc
+            # 移除重复文档。
             if isinstance(result_list[0], dict):
                 exist_id = set()
                 for idx, doc in enumerate(result_list):
@@ -763,11 +788,13 @@ class MultiRetrieverRouter:
             if isinstance(result_list[0], dict):
                 query, result_list, score_list = [query], [result_list], [score_list]
             # parse the result of multimodal corpus
+            # 解析多模态语料的结果格式。
             for item_result in result_list:
                 for item in item_result:
                     if item["is_multimodal"]:
                         item["contents"] = item["text"]
             # rerank all docs
+            # 对全部候选文档重排。
             print(result_list)
             result_list, score_list = self.reranker.rerank(query, result_list, topk=num)
             if isinstance(query, str):
@@ -788,10 +815,12 @@ class MultiRetrieverRouter:
         Returns:
             list of list of dict: Fused results with topk highest scores per query.
         """
+        # 基于文档在各召回列表中的名次做倒数排名融合，而非直接比较不同模型的原始分数。
         fused_results = []
         fused_scores = []
         for query_results in results:
             # Initialize a score dictionary to accumulate RRF scores
+            # 初始化用于累积 RRF 得分的字典。
             score_dict = {}
             retriever_result_dict = {}
             id2item = {}
@@ -803,17 +832,21 @@ class MultiRetrieverRouter:
                 id2item[item["id"]] = item
 
             # Calculate RRF scores for each document
+            # 计算每篇文档的 RRF 得分。
             for retriever, retriever_result in retriever_result_dict.items():
                 for rank, doc_id in enumerate(retriever_result, start=1):
                     if doc_id not in score_dict:
                         score_dict[doc_id] = 0
                     # Add RRF score for the document
+                    # 为当前文档累加 RRF 得分。
                     score_dict[doc_id] += 1 / (k + rank)
 
             # Sort by accumulated RRF score
+            # 按累积的 RRF 得分排序。
             sorted_results = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
 
             # Keep only the topk results
+            # 只保留前 topk 条结果。
             top_ids = [i[0] for i in sorted_results[:topk]]
             top_scores = [i[1] for i in sorted_results[:topk]]
 
@@ -824,7 +857,9 @@ class MultiRetrieverRouter:
 
     def search(self, query, target_modal="text", num: Union[list, int, None] = None, return_score=False):
         # query: str or PIL.Image
+        # 查询可以是文本字符串或 PIL 图片对象。
         # judge query type: text or image
+        # 判断查询类型是文本还是图片。
         if judge_image(query):
             retriever_list = [
                 retriever for retriever in self.retriever_list if isinstance(retriever, MultiModalRetriever)
@@ -833,6 +868,7 @@ class MultiRetrieverRouter:
             retriever_list = self.retriever_list
         if target_modal == "image":
             # remove text retriever
+            # 排除不支持图片查询的文本检索器。
             retriever_list = [retriever for retriever in retriever_list if isinstance(retriever, MultiModalRetriever)]
 
         return self._search_or_batch_search(
@@ -841,6 +877,7 @@ class MultiRetrieverRouter:
 
     def batch_search(self, query, target_modal="text", num: Union[list, int, None] = None, return_score=False):
         # judge query type: text or image
+        # 判断查询类型是文本还是图片。
         if not isinstance(query, list):
             query = [query]
         if target_modal == "image":
@@ -852,6 +889,7 @@ class MultiRetrieverRouter:
         query_type_list = [judge_image(q) for q in query]
         if all(query_type_list):
             # all query is image
+            # 全部查询都是图片。
             if self.merge_method == "rerank":
                 warnings.warn("merge_method is rerank, but all query is image, use default method `concat` instead")
                 self.merge_method = "concat"
@@ -864,7 +902,9 @@ class MultiRetrieverRouter:
             )
         elif all([not t for t in query_type_list]):
             # all query is text
+            # 全部查询都是文本。
             # if exist text retriever, don't use mm retriever for text-text search
+            # 存在文本检索器时，文本到文本检索不使用多模态检索器。
             if any([isinstance(retriever, BaseTextRetriever) for retriever in self._retriever_list]):
                 self._retriever_list = [
                     retriever for retriever in self._retriever_list if not isinstance(retriever, MultiModalRetriever)
@@ -874,6 +914,7 @@ class MultiRetrieverRouter:
             )
         else:
             # query list is the mix of image and text
+            # 查询列表混合了图片与文本。
             if self.merge_method == "rerank":
                 warnings.warn("merge_method is rerank, but some query is image, use default method `concat` instead")
                 self.merge_method = "concat"
@@ -897,6 +938,7 @@ class MultiRetrieverRouter:
             )
 
             # merge text output and image output
+            # 合并文本查询和图片查询的输出。
             if return_score:
                 text_result, text_score = text_output
                 image_result, image_score = image_output
@@ -930,6 +972,7 @@ class MultiRetrieverRouter:
 
 class SparseRetriever(BaseTextRetriever):
     """Sparse embedding retriever supporting only SPLADE with Seismic backend for now."""
+    # 用稀疏模型编码查询并访问 Seismic 索引。
 
     def __init__(self, config):
         super().__init__(config)
@@ -955,6 +998,7 @@ class SparseRetriever(BaseTextRetriever):
 
     def update_additional_setting(self):
         """Load config shared for all the models supported"""
+        # 更新当前实现的专用配置。
         self.query_max_length = self._config["retrieval_query_max_length"]
         self.use_fp16 = self._config["retrieval_use_fp16"]
         self.batch_size = self._config["retrieval_batch_size"]
@@ -963,14 +1007,19 @@ class SparseRetriever(BaseTextRetriever):
 
     def _init_seismic_index(self):
         """Initialize Seismic index."""
+        # 加载 Seismic 稀疏索引，并准备查询词项的固定宽度字符串类型。
         from seismic import SeismicIndex  # Assuming this is available
+        # 假定此资源已经可用。
         self.seismic_index = SeismicIndex.load(self.index_path)
         self.string_type = f'U{self.index_max_tokens}'  # For Seismic string dtype
+        # 用于 Seismic 的字符串数据类型。
 
     def _load_sparse_model(self):
         """Load tokenizer and model based on sparse type."""
+        # 加载 SPLADE 分词器与掩码语言模型，并设置精度、设备和推理模式。
         from transformers import AutoModelForMaskedLM, AutoTokenizer
         # Load model
+        # 加载模型。
         tokenizer = AutoTokenizer.from_pretrained(self.retrieval_model_path)
         model = AutoModelForMaskedLM.from_pretrained(self.retrieval_model_path)
 
@@ -978,6 +1027,7 @@ class SparseRetriever(BaseTextRetriever):
             model = model.half()
 
         # Use more gpus if available
+        # 存在多个 GPU 时使用多卡。
         if torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model, device_ids=self.config['gpu_id'].split(','))
 
@@ -997,20 +1047,26 @@ class SparseRetriever(BaseTextRetriever):
 
         with torch.no_grad():
             logits = self.model(**inputs).logits  # [batch_size, seq_len, vocab_size]
+            # 张量形状为批次数量×序列长度×词表大小。
             attention_mask = inputs["attention_mask"].unsqueeze(-1)  # [batch, seq_len, 1]
+            # 张量形状为批次数量×序列长度×1。
 
             scores = torch.log1p(torch.relu(logits)) * attention_mask
             v_repr = torch.max(scores, dim=1)[0]  # [batch_size, vocab_size]
+            # 张量形状为批次数量×词表大小。
 
             # Move to CPU (it seems much faster)
+            # 移到 CPU 处理；原实现注释指出这种方式似乎更快。
             v_repr = v_repr.cpu()
             nonzero_mask = v_repr > 1e-4
 
             # Get sparse values and indices in batch
+            # 批量取得稀疏表示的非零权重与位置。
             batch_indices, token_indices = torch.nonzero(nonzero_mask, as_tuple=True)
             token_scores = v_repr[batch_indices, token_indices]
 
             # Convert once all token IDs to strings (batched)
+            # 一次性批量把全部 token 标识转换为字符串。
             unique_token_ids = torch.unique(token_indices)
             token_id_to_token = {
                 idx.item(): tok for idx, tok in zip(
@@ -1019,16 +1075,19 @@ class SparseRetriever(BaseTextRetriever):
             }
 
             # Build final embeddings
+            # 构造最终嵌入表示。
             from collections import defaultdict
             embeddings = defaultdict(dict)
             for b_idx, t_idx, score in zip(batch_indices, token_indices, token_scores):
                 embeddings[b_idx.item()][token_id_to_token[t_idx.item()]] = round(score.item(), 4)
 
             # Convert to list for each document
+            # 为每篇文档分别转为列表。
             return [embeddings[i] for i in range(len(query))]
 
     def search(self, query: list, num: int = None, return_score=False) -> (List[Dict], List[float]):
         """Search using sparse vector."""
+        # 使用稀疏向量检索，返回对应的文档与可选分数。
         num = num or self.topk
 
         query_vec = self._encode(query)
@@ -1041,6 +1100,7 @@ class SparseRetriever(BaseTextRetriever):
 
     def batch_search(self, query, num=None, return_score=False):
         """Search using sparse vector."""
+        # 使用稀疏向量检索，返回对应的文档与可选分数。
         if isinstance(query, str):
             query = [query]
 
@@ -1054,8 +1114,10 @@ class SparseRetriever(BaseTextRetriever):
         batch = []
         
         # Encode
+        # 编码查询。
         for i in range(len(query)):
             # Process batch
+            # 处理当前批次。
             batch.append(query[i])
             if len(batch) >= self.batch_size:
                 query_vec = self._encode(batch)
@@ -1067,6 +1129,7 @@ class SparseRetriever(BaseTextRetriever):
             embeddings.extend(query_vec)
 
         # Search
+        # 执行检索。
         search_results = self._seismic_batch_search(embeddings, num)
 
         results = []
@@ -1089,18 +1152,22 @@ class SparseRetriever(BaseTextRetriever):
 
     def _seismic_search(self, query_vec: List[Dict[str, float]], k: int) -> (List[Dict], List[float]):
         """Search using Seismic backend."""
+        # 通过 Seismic 后端执行单条查询。
         # Convert query to Seismic format
+        # 将查询转换为 Seismic 所需格式。
         results, scores = self.index_search(k, query_vec)
         return results[0], scores[0]
 
     def _seismic_batch_search(self, query_vecs: List[Dict[str, float]], k: int) -> (
             List[List[Dict]], List[List[float]]):
         """Batch search using Seismic backend (one query at a time)."""
+        # 通过 Seismic 后端处理批量查询。
         return self.index_search(k, query_vecs)
 
     def index_search(self, k, query_vec):
         max_len = max(len(query) for query in query_vec)
         pad_token = ""  # or whatever default is appropriate
+        # 也可以使用其他合适的默认值。
 
         query_components = []
         query_values = []
@@ -1111,6 +1178,7 @@ class SparseRetriever(BaseTextRetriever):
             values = list(query.values())
 
             # Pad to max_len
+            # 填充到 max_len。
             padded_keys = keys + [pad_token] * (max_len - len(keys))
             padded_values = values + [0.0] * (max_len - len(values))
 
@@ -1121,34 +1189,43 @@ class SparseRetriever(BaseTextRetriever):
 
         ids = np.array(ids, dtype='U30')
         # Execute search
+        # 发起检索。
         search_results = self.seismic_index.batch_search(
             queries_ids=ids,  # Placeholder ID
+            # 占位标识。
             query_components=query_components,
             query_values=query_values,
             query_cut=self.seismic_query_cut,
             heap_factor=self.seismic_heap_factor,
             k=k,
             sorted=True,  # specified even if default value
+            # 即使等于默认值，也显式指定该参数。
             num_threads=int(self.cores)
         )
         return search_results
 
 class SerperRetriever(BaseRetriever):
     """Retriever based on Google Serper API for web search."""
+    # 调用 Serper 搜索接口，将返回内容适配为检索结果。
 
     def __init__(self, config):
         super().__init__(config)
         
         # Serper API specific configuration
+        # Serper API 专用配置。
         self.api_key = config["serper_api_key"]
         if not self.api_key:
             raise ValueError("serper_api_key is required in config")
         
         self.api_url = "https://google.serper.dev/search"
         self.search_type = config["serper_search_type"] if config["serper_search_type"] else "search"  # search, news, images, etc.
+        # 搜索类型可以是网页、新闻或图片等。
         self.location = config["serper_location"] if config["serper_location"] else None  # e.g., "United States"
+        # 位置示例为 United States。
         self.gl = config["serper_gl"] if config["serper_gl"] else None  # Country code, e.g., "us"
+        # 国家代码，例如 us。
         self.hl = config["serper_hl"] if config["serper_hl"] else "en"  # Language, e.g., "en"
+        # 语言代码，例如 en。
         
     def _search(self, query: str, num: int) -> List[Dict[str, str]]:
         """
@@ -1167,6 +1244,7 @@ class SerperRetriever(BaseRetriever):
                 - url: Page URL
                 - score: Relevance score (if return_score=True)
         """
+        # 检索与当前查询相关的文档；具体实现决定是否附带分数。
         headers = {
             'X-API-KEY': self.api_key,
             'Content-Type': 'application/json'
@@ -1196,6 +1274,7 @@ class SerperRetriever(BaseRetriever):
             results = []
             
             # Parse organic results
+            # 解析自然搜索结果。
             organic_results = data.get('organic', [])
             for idx, item in enumerate(organic_results[:num]):
                 result = {
@@ -1219,6 +1298,7 @@ class SerperRetriever(BaseRetriever):
         """
         Single search wrapper for SerperRetriever.
         """
+        # SerperRetriever 的单条搜索包装入口。
         if num is None:
             num = self.topk
         return self._search(query, num)
@@ -1235,6 +1315,7 @@ class SerperRetriever(BaseRetriever):
         Returns:
             List of result lists, one for each query
         """
+        # 批量检索文档，保持各查询及其结果的对应关系。
         results = []
         if num is None:
             num = self.topk
@@ -1243,6 +1324,7 @@ class SerperRetriever(BaseRetriever):
             result = self._search(query, num)
             results.append(result)
             # Add a small delay to avoid rate limiting
+            # 加入短暂延迟，以降低触发速率限制的概率。
             time.sleep(0.1)
         
         return results
@@ -1252,15 +1334,20 @@ class SerperRetriever(BaseRetriever):
 
 def main():
 # Example configuration
+# 配置示例。
     config = {
         # Base retriever config
+        # 检索器基础配置。
         "retrieval_method": "serper",
         "retrieval_topk": 10,
         "index_path": None,  # Not used for Serper
+        # Serper 不使用这个配置项。
         "corpus_path": None,  # Not used for Serper
+        # Serper 不使用这个配置项。
         "save_dir": "./output",
         
         # Serper specific config
+        # Serper 专用配置。
         "serper_api_key": "your-api-key",
         "serper_search_type": "search",
         "serper_location": "United States",
@@ -1272,6 +1359,7 @@ def main():
     retriever = SerperRetriever(config)
 
     # Batch search
+    # 批量检索。
     queries = ["Python programming", "Machine learning"]
     batch_results = retriever.batch_search(queries)
     print(batch_results)

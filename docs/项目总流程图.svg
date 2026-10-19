@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="920" viewBox="0 0 1280 920" role="img" aria-labelledby="title desc">
+<title id="title">FlashRAG 项目总流程图</title>
+<desc id="desc">从离线语料准备、索引构建，到配置、数据集、检索、提示词、生成、评估与结果保存的主调用链。</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#52677f"/></marker></defs>
+<rect width="1280" height="920" fill="#f8fafc"/>
+<g font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<text x="60" y="56" font-size="32" fill="#192b40" font-weight="700" text-anchor="start">FlashRAG · 从证据到答案</text>
+<text x="60" y="91" font-size="19" fill="#52677f" font-weight="400" text-anchor="start">对照源码理解：离线准备 → 组件装配 → 检索与生成 → 评估</text>
+<text x="60" y="137" font-size="20" fill="#192b40" font-weight="600" text-anchor="start">01  离线准备</text>
+<rect x="60" y="158" width="240" height="84" rx="12" fill="#e8f4ed" stroke="#a8b9cc"/>
+<text x="180" y="192" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">原始语料</text>
+<text x="180" y="221" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">Wiki / 自有文档</text>
+<rect x="360" y="158" width="240" height="84" rx="12" fill="#e8f4ed" stroke="#a8b9cc"/>
+<text x="480" y="192" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">清洗与切块</text>
+<text x="480" y="221" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">scripts/</text>
+<rect x="660" y="158" width="240" height="84" rx="12" fill="#e8f4ed" stroke="#a8b9cc"/>
+<text x="780" y="192" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">语料 JSONL</text>
+<text x="780" y="221" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">知识文档与内容</text>
+<rect x="960" y="158" width="240" height="84" rx="12" fill="#e8f4ed" stroke="#a8b9cc"/>
+<text x="1080" y="192" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">构建并保存索引</text>
+<text x="1080" y="221" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">Index_Builder</text>
+<polyline points="300,200 355,200" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="600,200 655,200" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="900,200 955,200" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="60" y="317" font-size="20" fill="#192b40" font-weight="600" text-anchor="start">02  一次顺序 RAG 实验</text>
+<rect x="60" y="342" width="240" height="84" rx="12" fill="#e8f1fb" stroke="#a8b9cc"/>
+<text x="180" y="376" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">实验入口</text>
+<text x="180" y="405" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">示例脚本 / WebUI</text>
+<rect x="360" y="342" width="240" height="84" rx="12" fill="#e8f1fb" stroke="#a8b9cc"/>
+<text x="480" y="376" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">Config</text>
+<text x="480" y="405" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">默认值 + YAML + 字典</text>
+<rect x="660" y="342" width="240" height="84" rx="12" fill="#e8f1fb" stroke="#a8b9cc"/>
+<text x="780" y="376" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">Dataset</text>
+<text x="780" y="405" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">问题与标准答案</text>
+<rect x="960" y="342" width="240" height="84" rx="12" fill="#e8f1fb" stroke="#a8b9cc"/>
+<text x="1080" y="376" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">Pipeline</text>
+<text x="1080" y="405" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">装配并编排组件</text>
+<polyline points="300,384 355,384" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="600,384 655,384" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="900,384 955,384" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="1080,426 1080,496" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="960" y="502" width="240" height="84" rx="12" fill="#edf0fb" stroke="#a8b9cc"/>
+<text x="1080" y="536" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">Retriever</text>
+<text x="1080" y="565" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">读取配套语料与索引</text>
+<rect x="660" y="502" width="240" height="84" rx="12" fill="#edf0fb" stroke="#a8b9cc"/>
+<text x="780" y="536" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">可选重排与压缩</text>
+<text x="780" y="565" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">Reranker / Refiner</text>
+<rect x="360" y="502" width="240" height="84" rx="12" fill="#edf0fb" stroke="#a8b9cc"/>
+<text x="480" y="536" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">PromptTemplate</text>
+<text x="480" y="565" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">组织问题与证据</text>
+<rect x="60" y="502" width="240" height="84" rx="12" fill="#edf0fb" stroke="#a8b9cc"/>
+<text x="180" y="536" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">Generator</text>
+<text x="180" y="565" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">生成预测答案</text>
+<polyline points="960,544 905,544" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="660,544 605,544" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="360,544 305,544" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<polyline points="1200,200 1235,200 1235,544 1205,544" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)" stroke-dasharray="6 5"/>
+<text x="1075" y="282" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">索引供检索使用</text>
+<polyline points="180,586 180,660" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="60" y="666" width="240" height="84" rx="12" fill="#fff1db" stroke="#a8b9cc"/>
+<text x="180" y="700" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">Evaluator</text>
+<text x="180" y="729" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">指标汇总与样本评分</text>
+<rect x="360" y="666" width="240" height="84" rx="12" fill="#fff1db" stroke="#a8b9cc"/>
+<text x="480" y="700" font-size="23" fill="#192b40" font-weight="600" text-anchor="middle">结果与缓存</text>
+<text x="480" y="729" font-size="15" fill="#52677f" font-weight="400" text-anchor="middle">按配置选择保存</text>
+<polyline points="300,708 355,708" fill="none" stroke="#52677f" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="660" y="688" font-size="20" fill="#192b40" font-weight="600" text-anchor="start">数据沿途写回 Item.output</text>
+<text x="660" y="722" font-size="16" fill="#52677f" font-weight="400" text-anchor="start">retrieval_result → prompt → pred → metric_score</text>
+<rect x="60" y="792" width="1140" height="84" rx="10" fill="#eef2f6"/>
+<text x="80" y="825" font-size="18" fill="#192b40" font-weight="600" text-anchor="start">阅读提示</text>
+<text x="80" y="854" font-size="18" fill="#52677f" font-weight="400" text-anchor="start">条件方法可跳过检索；多轮方法反复检索与生成。重排通常在检索器内部完成。</text>
+</g>
+</svg>

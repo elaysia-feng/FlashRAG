@@ -33,6 +33,7 @@ def create_evaluate(engine: "Engine") -> Dict[str, "Component"]:
                 
                 with gr.Row():
                     # TODO: auto download from huggingface
+                    # 待办：支持从 Hugging Face 自动下载。
                     seed = gr.Textbox(interactive = True)
                     test_sample_num = gr.Number(
                         value = 10,

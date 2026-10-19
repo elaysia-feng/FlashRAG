@@ -1,4 +1,5 @@
 # Implementation of LLMLingua, modified from official repo: https://github.com/microsoft/LLMLingua.
+# LLMLingua 实现，基于上方链接指向的官方仓库修改。
 # Copyright (c) 2023 Microsoft
 # Licensed under The MIT License
 
@@ -59,6 +60,7 @@ class TokenClfDataset(Dataset):
         tokenized_text = self.tokenizer.tokenize(text)
 
         tokenized_text = [self.cls_token] + tokenized_text + [self.sep_token]  # add special tokens
+        # 添加特殊 token。
 
         if len(tokenized_text) > self.max_len:
             tokenized_text = tokenized_text[: self.max_len]
@@ -231,6 +233,7 @@ class PromptCompressor:
     Note:
         The `PromptCompressor` class requires the Hugging Face Transformers library and an appropriate environment to load and run the models.
     """
+    # 执行提示压缩的核心实现，包括 token 预算和内容筛选。
 
     def __init__(
         self,
@@ -335,6 +338,7 @@ class PromptCompressor:
         shift_logits = response.logits[..., :-1, :].contiguous()
         shift_labels = input_ids[..., past_length + 1 : end].contiguous()
         # Flatten the tokens
+        # 将各组 token 展平。
         active = (attention_mask[:, past_length:end] == 1)[..., :-1].view(-1)
         active_logits = shift_logits.view(-1, shift_logits.size(-1))[active]
         active_labels = shift_labels.view(-1)[active]
@@ -494,6 +498,7 @@ class PromptCompressor:
                 - "rate" (str): The compression rate achieved, in a human-readable format.
                 - "saving" (str): Estimated savings in GPT-4 token usage.
         """
+        # 解析结构化片段的局部压缩率，再交给统一的提示压缩入口。
         if not context:
             context = [" "]
         if isinstance(context, str):
@@ -659,6 +664,7 @@ class PromptCompressor:
                 - "rate" (str): The compression rate achieved, in a human-readable format.
                 - "saving" (str): Estimated savings in GPT-4 token usage.
         """
+        # 根据上下文、句子和 token 三级预算压缩提示词，返回压缩文本及 token 统计。
         if self.use_llmlingua2:
             return self.compress_prompt_llmlingua2(
                 context,
@@ -883,6 +889,7 @@ class PromptCompressor:
                 - "saving" (str): Estimated savings in GPT-4 token usage.
 
         """
+        # 用 token 分类概率压缩上下文，支持强制保留词和可选词级标签。
         assert len(force_tokens) <= self.max_force_token
         token_map = {}
         for i, t in enumerate(force_tokens):
@@ -911,7 +918,9 @@ class PromptCompressor:
 
         if use_context_level_filter:
             # want use_context_level_filter but do not specify any parameters in context level?
+            # 启用了上下文级筛选，但没有指定这一层的参数时，在下方补默认值。
             # we will set context_level_rate = (rate + 1.0) / 2 if specify rate or target_token * 2 if specify target_token
+            # 指定 rate 时，默认上下文保留率为 (rate+1)/2；指定目标 token 时，默认上下文预算为其两倍。
             if target_context <= 0 and context_level_rate >= 1.0 and context_level_target_token <= 0:
                 if target_token < 0 and rate < 1.0:
                     context_level_rate = (rate + 1.0) / 2 if use_token_level_filter else rate
@@ -1598,6 +1607,7 @@ class PromptCompressor:
         while end <= compressed_input_ids.shape[1]:
             if end > self.max_position_embeddings and past_key_values is not None:
                 # KV-Cache Compression
+                # 对 KV 缓存执行压缩。
                 e, s = end - self.max_position_embeddings, min(self.cache_bos_num + start, self.max_position_embeddings)
                 if pop_compressed_input_ids is None:
                     pop_compressed_input_ids = compressed_input_ids[:, :e]
@@ -1931,9 +1941,11 @@ class PromptCompressor:
                 query_outputs = self.retrieval_model[1](**query_inputs)
                 key_outputs = self.retrieval_model[1](**key_inputs)
                 # CLS pooling
+                # 使用 CLS 位置的表示进行池化。
                 query_embeddings = query_outputs.last_hidden_state[:, 0]
                 key_embeddings = key_outputs.last_hidden_state[:, 0]
                 # Normalize
+                # 归一化。
                 query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=1)
                 key_embeddings = torch.nn.functional.normalize(key_embeddings, p=2, dim=1)
                 similarity = query_embeddings @ key_embeddings.T
@@ -2045,13 +2057,16 @@ class PromptCompressor:
                 text = text + "</llmlingua>"
 
             # Regular expression to match <llmlingua, rate=x, compress=y>content</llmlingua>, allowing rate and compress in any order
+            # 匹配 LLMLingua 结构标签，允许 rate 与 compress 属性以任意顺序出现。
             pattern = r"<llmlingua\s*(?:,\s*rate\s*=\s*([\d\.]+))?\s*(?:,\s*compress\s*=\s*(True|False))?\s*(?:,\s*rate\s*=\s*([\d\.]+))?\s*(?:,\s*compress\s*=\s*(True|False))?\s*>([^<]+)</llmlingua>"
             matches = re.findall(pattern, text)
 
             # Extracting segment contents
+            # 提取片段内容。
             segments = [match[4] for match in matches]
 
             # Extracting rate and compress, considering their possible positions
+            # 按属性可能出现的位置提取压缩率和压缩开关。
             segs_rate = [float(match[0]) if match[0] else (float(match[2]) if match[2] else None) for match in matches]
             segs_compress = [
                 (match[1] == "True" if match[1] else (match[3] == "True" if match[3] else None)) for match in matches
@@ -2166,6 +2181,7 @@ class PromptCompressor:
 
     def __chunk_context(self, origin_text, chunk_end_tokens):
         # leave 2 token for CLS and SEP
+        # 为 CLS 和 SEP 两个特殊 token 预留位置。
         max_len = self.max_seq_len - 2
         origin_list = []
         origin_tokens = self.tokenizer.tokenize(origin_text)
@@ -2196,6 +2212,7 @@ class PromptCompressor:
             if token in self.special_tokens:
                 continue
             # add a new word
+            # 开始一个新词。
             elif is_begin_of_new_word(token, self.model_name, force_tokens, token_map):
                 pure_token = get_pure_token(token, self.model_name)
                 prob_no_force = prob
@@ -2206,6 +2223,7 @@ class PromptCompressor:
                 word_probs.append([1.0 if force_reserve_digit and bool(re.search(r"\d", token)) else prob])
                 word_probs_no_force.append([prob_no_force])
             # concatenate with previous token
+            # 与前一个 token 拼接为同一个词。
             else:
                 pure_token = get_pure_token(token, self.model_name)
                 words[-1] += pure_token
@@ -2247,6 +2265,7 @@ class PromptCompressor:
                 chunk_word_labels = []
                 for j in range(len(chunk_list)):
                     # replace to original token
+                    # 替换回原始 token。
                     for ori_token, new_token in token_map.items():
                         chunk_list[j] = chunk_list[j].replace(new_token, ori_token)
                     ws = split_string_to_words(chunk_list[j])

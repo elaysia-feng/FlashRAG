@@ -1,5 +1,7 @@
 # ----Global Paths----
+# 全局路径设置。
 # Paths to retrieval models
+# 检索模型的名称与路径映射。
 model2path:
   e5: intfloat/e5-base-v2
   bge: BAAI/bge-base-en-v1.5
@@ -36,6 +38,7 @@ model2path:
   jina-clip-v2: jinaai/jina-clip-v2
 
 # Pooling methods for each embedding model
+# 各嵌入模型使用的池化方式。
 model2pooling:
   default: "pooler"
   e5: "mean"
@@ -45,6 +48,7 @@ model2pooling:
   bge-m3: "cls"
 
 # Indexes path for retrieval models
+# 各检索模型对应的索引路径。
 method2index:
   e5: ~
   bm25: ~
@@ -53,25 +57,32 @@ method2index:
   bge-m3: ~
 
 # ----Environment Settings----
+# 运行环境设置。
 gpu_id: "1,2"
 dataset_name: "nq"
 split: ["dev",'test']
 
 # Sampling configurations for testing
+# 测试采样设置。
 test_sample_num: 1000
 random_sample: False
 save_intermediate_data: True
 # Seed for reproducibility
+# 设置随机种子，便于复现实验。
 seed: 2024
 
 # Directory paths for data and outputs
+# 数据与输出目录。
 data_dir: "datasets/"
 #save_dir: "/data00/jiajie_jin/test_project/output"
 save_dir: "result/"
 
 # ----Retrieval Settings----
+# 检索设置。
 retrieval_method: "e5" # name or path of the retrieval model
+# 检索模型的名称或路径。
 index_path: ~ # Set automatically if not provided
+# 未提供时自动补齐。
 corpus_path: ~
 retrieval_pooling_method: ~
 
@@ -93,8 +104,11 @@ rerank_max_length: 512
 rerank_batch_size: 256
 
 # ----Generator Settings----
+# 生成设置。
 framework: vllm # inference frame work of LLM, supporting: 'hf','vllm','fschat'
+# 大语言模型推理后端，原配置列出 hf、vllm、fschat。
 generator_model: "llama3-8B-instruct"  # name or path of the generator
+# 生成器的名称或路径。
 generator_max_input_len: 4096
 generator_batch_size: 4
 generation_params:
@@ -105,11 +119,15 @@ generation_params:
 vllm_gpu_memory_utilization: 0.95
 
 # ----Evaluation Settings----
+# 评估设置。
 # Metrics to evaluate the result
+# 需要计算的评估指标。
 metrics: ['em','f1','acc','precision','recall','input_tokens'] 
 # Specify setting for metric, will be called within certain metrics
+# 指标专用参数，由相应指标实现读取。
 metric_setting: 
   retrieval_recall_topk: 5
   tokenizer_name: 'gpt-4'
 save_metric_score: True #　whether to save the metric score into txt file
+# 是否把指标得分保存到文本文件。
 

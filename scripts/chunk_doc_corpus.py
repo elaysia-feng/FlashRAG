@@ -3,6 +3,7 @@
 This script is used to chunk documents from a Document Corpus JSONL file,
 via Chonkie.
 """
+# 将 JSONL 文档语料切分为较小的文档块。
 
 import argparse
 import json
@@ -37,10 +38,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load documents
+    # 加载文档。
     print("Loading documents...")
     documents = load_jsonl(args.input_path)
 
     # Initialize chunker
+    # 初始化文档切块器。
     if args.chunk_by == "token":
         chunker = chonkie.TokenChunker(tokenizer=args.tokenizer_name_or_path, chunk_size=args.chunk_size)
     elif args.chunk_by == "word":
@@ -55,6 +58,7 @@ if __name__ == "__main__":
         raise ValueError(f"Invalid chunking method: {args.chunk_by}")
 
     # Process and chunk documents
+    # 处理文档并切分为检索块。
     print("Chunking documents...")
     chunked_documents = []
     current_chunk_id = 0
@@ -72,6 +76,7 @@ if __name__ == "__main__":
             current_chunk_id += 1
 
     # Save chunked documents
+    # 保存切块后的文档。
     print("Saving chunked documents...")
     save_jsonl(chunked_documents, args.output_path)
     print(f"Done! Processed {len(documents)} documents into {len(chunked_documents)} chunks.")

@@ -24,6 +24,7 @@ class Encoder:
         encode(query_list: List[str], is_query=True) -> np.ndarray:
             Encodes a list of queries into embeddings.
     """
+    # 统一文本编码和池化，供文档与查询向量化使用。
 
     def __init__(self, model_name, model_path, pooling_method, max_length, use_fp16=True, instruction=None, silent=False):
         self.model_name = model_name
@@ -49,6 +50,7 @@ class Encoder:
             isinstance(self.model, torch.nn.DataParallel) and "T5" in type(self.model.module).__name__
         ):
             # T5-based retrieval model
+            # 基于 T5 的检索模型。
             decoder_input_ids = torch.zeros((inputs["input_ids"].shape[0], 1), dtype=torch.long).to(
                 inputs["input_ids"].device
             )
@@ -99,6 +101,7 @@ class STEncoder:
         multi_gpu_encode(query_list: List[str], is_query=True, batch_size=None) -> np.ndarray:
             Encodes a list of queries into embeddings using multiple GPUs.
     """
+    # 使用 Sentence Transformers 的编码接口生成向量。
 
     def __init__(self, model_name, model_path, max_length, use_fp16, instruction, silent=False):
         import torch
@@ -147,6 +150,7 @@ class STEncoder:
 
 class ClipEncoder:
     """ClipEncoder class for encoding queries using CLIP."""
+    # 将文本或图片编码到 CLIP 向量空间，用于多模态检索。
 
     def __init__(self, model_name, model_path, silent=False):
 
@@ -167,6 +171,7 @@ class ClipEncoder:
             self.model = AutoModel.from_pretrained(self.model_path, trust_remote_code=True)
             self.processor = AutoProcessor.from_pretrained(self.model_path, trust_remote_code=True)
             # set model max length for chineseclipmodel
+            # 为 ChineseCLIP 模型设置最大输入长度。
         elif model_type.endswith("CLIPModel"):
             self.model = AutoModel.from_pretrained(self.model_path, trust_remote_code=True)
             self.processor = None
@@ -177,6 +182,7 @@ class ClipEncoder:
         self.model.cuda()
 
         # set model max length for model that not specified in config.json
+        # 模型配置未声明最大长度时，在此补充设置。
         if self.processor is not None and self.processor.tokenizer.model_max_length > 100000:
             try:
                 model_max_length = config["text_config"]["max_position_embeddings"]
@@ -212,8 +218,10 @@ class ClipEncoder:
     @torch.inference_mode()
     def encode_image(self, image_list: List) -> np.ndarray:
         # Each item in image_list: PIL Image, local path, or URL
+        # image_list 的每一项可以是 PIL 图片、本地路径或 URL。
         if self.model_type == "CLIPModel" or self.model_type == "ChineseCLIPModel":
             # need handle image
+            # 需要处理图片输入。
             image_list = [parse_image(image) for image in image_list]
             inputs = self.processor(images=image_list, return_tensors="pt")
             inputs = {k: v.cuda() for k, v in inputs.items()}
@@ -229,6 +237,7 @@ class ClipEncoder:
     @torch.inference_mode()
     def encode_text(self, text_list: List[str]) -> np.ndarray:
         # Each item in image_list: PIL Image, local path, or URL
+        # image_list 的每一项可以是 PIL 图片、本地路径或 URL。
         if self.model_type == "CLIPModel" or self.model_type == "ChineseCLIPModel":
             inputs = self.processor(
                 text=text_list,

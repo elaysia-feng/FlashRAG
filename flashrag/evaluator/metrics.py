@@ -9,6 +9,7 @@ class BaseMetric:
     """`BaseMetric` serves as the base object of all metrics. Implemented metric should
     inherit this class.
     """
+    # 评估指标公共接口；具体指标返回汇总值和样本级分数。
 
     metric_name = "base"
 
@@ -28,6 +29,7 @@ class BaseMetric:
             metric_score_list: score for each sample.
 
         """
+        # 计算数据集级指标和对应的样本级分数，供 Evaluator 汇总与回写。
         return {}, []
 
     def get_dataset_answer(self, data):
@@ -35,6 +37,7 @@ class BaseMetric:
             golden_answers_list = data.golden_answers
         else:
             # multi-choice dataset
+            # 多项选择题数据集。
             all_choices_list = data.choices
             golden_choice_idx_list = data.golden_answers
             golden_answers_list = [
@@ -47,6 +50,7 @@ class BaseMetric:
 
 class F1_Score(BaseMetric):
     """Token-level F1 score"""
+    # 答案 token 重叠的 F1 指标，综合精确率与召回率。
 
     metric_name = "f1"
 
@@ -95,6 +99,7 @@ class F1_Score(BaseMetric):
 
 class Recall_Score(F1_Score):
     """Token-level Recall score"""
+    # 答案 token 重叠的召回率，关注参考答案被预测覆盖的比例。
 
     metric_name = "recall"
 
@@ -114,6 +119,7 @@ class Recall_Score(F1_Score):
 
 class Precision_Score(F1_Score):
     """Token-level Precision score"""
+    # 答案 token 重叠的精确率，关注预测中有多少内容与参考答案匹配。
 
     metric_name = "precision"
 
@@ -136,6 +142,7 @@ class ExactMatch(BaseMetric):
     with the standard answer.
 
     """
+    # 规范化答案后的完全匹配指标。
 
     metric_name = "em"
 
@@ -177,6 +184,7 @@ class ExactMatch(BaseMetric):
 
 class Sub_ExactMatch(BaseMetric):
     r"""Sub-Exact match measure whether the predicted answer contains the standard answer."""
+    # 参考答案是否出现在预测文本中的子串匹配指标。
 
     metric_name = "acc"
 
@@ -218,6 +226,7 @@ class Sub_ExactMatch(BaseMetric):
 
 class Retrieval_Recall(BaseMetric):
     r"""The recall of the top-k retreived passages, we measure if any of the passage contain the answer string."""
+    # 检查召回文档是否包含标准答案的检索召回指标。
 
     metric_name = "retrieval_recall"
 
@@ -250,6 +259,7 @@ class Retrieval_Recall(BaseMetric):
 
 class Retrieval_Precision(BaseMetric):
     r"""The precision of the top-k retreived passages, we measure if any of the passage contain the answer string."""
+    # 检查召回文档包含标准答案的比例。
 
     metric_name = "retrieval_precision"
 
@@ -282,6 +292,7 @@ class Retrieval_Precision(BaseMetric):
 
 class _DocumentLevelRetrievalMetric:
     """Shared document-ID based retrieval metric behavior."""
+    # 以标准文档标识和召回文档标识为依据计算检索质量。
 
     def __init__(self, config):
         super().__init__(config)
@@ -384,6 +395,7 @@ class _DocumentLevelRetrievalMetric:
 
 class DocumentRetrievalRecall(_DocumentLevelRetrievalMetric, BaseMetric):
     """Recall@K based on retrieved and ground-truth document IDs."""
+    # 标准证据文档中被召回的比例。
 
     metric_name = "retrieval_doc_recall"
 
@@ -394,6 +406,7 @@ class DocumentRetrievalRecall(_DocumentLevelRetrievalMetric, BaseMetric):
 
 class DocumentRetrievalPrecision(_DocumentLevelRetrievalMetric, BaseMetric):
     """Precision@K based on retrieved and ground-truth document IDs."""
+    # 召回文档中属于标准证据的比例。
 
     metric_name = "retrieval_doc_precision"
 
@@ -404,6 +417,7 @@ class DocumentRetrievalPrecision(_DocumentLevelRetrievalMetric, BaseMetric):
 
 class DocumentRetrievalF1(_DocumentLevelRetrievalMetric, BaseMetric):
     """F1@K based on retrieved and ground-truth document IDs."""
+    # 综合文档级检索精确率和召回率。
 
     metric_name = "retrieval_doc_f1"
 
@@ -418,6 +432,7 @@ class DocumentRetrievalF1(_DocumentLevelRetrievalMetric, BaseMetric):
 
 class DocumentRetrievalMAP(_DocumentLevelRetrievalMetric, BaseMetric):
     """Average Precision@K based on ranked document IDs."""
+    # 按相关文档的召回名次计算平均精确率。
 
     metric_name = "retrieval_doc_map"
 
@@ -448,6 +463,7 @@ class Rouge_Score(BaseMetric):
         output = {}
         for answer in golden_answers:
             # The rouge package raises on empty text, so score an empty prediction or answer as 0.
+            # rouge 包不接受空文本，因此预测或参考答案为空时记为 0 分。
             if pred.strip() and answer.strip():
                 scores = self.scorer.get_scores(pred, answer)
             else:
@@ -542,6 +558,7 @@ class ZH_Rouge_Score(BaseMetric):
         for answer in golden_answers:
             answer = ' '.join(jieba.cut(answer))
             # The rouge package raises on empty text, so score an empty prediction or answer as 0.
+            # rouge 包不接受空文本，因此预测或参考答案为空时记为 0 分。
             if pred.strip() and answer.strip():
                 scores = self.scorer.get_scores(pred, answer)
             else:
@@ -691,6 +708,7 @@ class LLMJudge(BaseMetric):
         else:
             assert False, "No available LLM settings!"
         # TODO: integrate generator class
+        # 待办：接入项目统一的生成器类。
         llm_name = llm_setting["model_name"]
         if "model_path" not in llm_setting:
             model_path = config["model2path"].get(llm_name, None)
@@ -726,6 +744,7 @@ class LLMJudge(BaseMetric):
 
         metric_score_list = [self.extract_judge_score(o) for o in judge_output]
         # rescale score
+        # 重新缩放得分。
         metric_score_list = [score / 10 for score in metric_score_list]
 
         score = sum(metric_score_list) / len(metric_score_list)
@@ -744,6 +763,7 @@ class CountToken(BaseMetric):
 
         if tokenizer_name is None or tokenizer_name in OPENAI_MODEL_DICT:
             # use gpt4 tokenizer
+            # 使用 GPT-4 对应的分词器。
             import tiktoken
 
             if tokenizer_name is None:
@@ -791,8 +811,11 @@ class GAOKAOMM_Accuracy(BaseMetric):
                     acc = 1.0
                 elif pred and pred in golden_answer:
                     # Partial credit is for a correct subset of the answer.
+                    # 仅当预测是标准答案的正确子集时才给予部分分数。
                     # An empty prediction (nothing could be parsed) is a
+                    # 解析不到任何答案时，预测会是空字符串。
                     # substring of every answer, but it must score 0.
+                    # 虽然空串是任意答案的子串，但仍必须记为 0 分。
                     acc = 0.5
                 else:
                     acc = 0.0

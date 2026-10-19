@@ -12,6 +12,7 @@ from flashrag.dataset import Dataset
 
 class BaseJudger:
     """Base object of Judger, used for judging whether to retrieve"""
+    # 定义问题路由判别器接口，供条件和自适应流水线调用。
 
     def __init__(self, config):
         self.config = config
@@ -28,6 +29,7 @@ class BaseJudger:
         Returns:
             judgement: bool, whether to retreive
         """
+        # 执行当前流水线的问答推理流程。
         pass
 
     def batch_run(self, dataset, batch_size=None) -> List[str]:
@@ -38,6 +40,7 @@ class SKRJudger(BaseJudger):
     """Implementation for SKR-knn
     Paper link: https://aclanthology.org/2023.findings-emnlp.691.pdf
     """
+    # 依据问题表示与已有样本判断是否需要外部检索。
 
     def __init__(self, config):
         super().__init__(config)
@@ -51,12 +54,14 @@ class SKRJudger(BaseJudger):
         with open(self.training_data_path, "r") as f:
             self.training_data = json.load(f)
         # count number of pos & neg samples in training data
+        # 统计训练数据中的正负样本数量。
         self.training_data_counter = Counter([item["judgement"].strip() for item in self.training_data])
         self.training_pos_num = self.training_data_counter["ir_better"]
         self.training_neg_num = self.training_data_counter["ir_worse"]
         self.training_data_num = sum(self.training_data_counter.values())
 
         # encode training question into faiss
+        # 将训练问题编码并存入 FAISS。
         training_questions = [item["question"] for item in self.training_data]
         all_embeddings = self.encode(training_questions)
         faiss_index = faiss.index_factory(all_embeddings.shape[-1], "Flat", faiss.METRIC_L2)
@@ -105,6 +110,7 @@ class SKRJudger(BaseJudger):
                 topk_counter = Counter(topk_samples)
 
                 # count number of pos & neg samples in topk
+                # 统计 topk 近邻中的正负样本数量。
                 ir_better_num = topk_counter["ir_better"]
                 ir_worse_num = topk_counter["ir_worse"]
                 topk_delta = ir_better_num - ir_worse_num
@@ -112,6 +118,7 @@ class SKRJudger(BaseJudger):
                 training_data_delta = self.training_pos_num - self.training_neg_num
 
                 # provide judgments based on the formula in the paper
+                # 根据论文中的公式给出判别结果。
                 if training_data_delta < 0:
                     if topk_delta < 0 and topk_delta <= int(training_data_delta * self.topk / self.training_data_num):
                         judgement = False
@@ -132,6 +139,7 @@ class AdaptiveJudger(BaseJudger):
     """Implementation for Adaptive-RAG
     Paper link: https://aclanthology.org/2024.naacl-long.389.pdf
     """
+    # 为问题选择无检索、单跳检索或多跳检索类别。
 
     def __init__(self, config):
         super().__init__(config)

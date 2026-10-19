@@ -14,6 +14,7 @@ from multiprocessing import Pool
 def load_corpus(dir_path):
     def iter_files(path):
         """Walk through all files located under a root path."""
+        # 遍历根目录下的全部文件。
         if os.path.isfile(path):
             yield path
         elif os.path.isdir(path):
@@ -49,6 +50,7 @@ def basic_process(title, text):
     if "(disambiguation page)" in title.lower():
         return None, None
     # Take out List/Index/Outline pages (mostly links)
+    # 排除列表、索引和大纲页面，这类页面大多只有链接。
     if re.match(r"(List of .+)|(Index of .+)|(Outline of .+)", title):
         return None, None
     if text.startswith("REDIRECT") or text.startswith("redirect"):
@@ -76,6 +78,7 @@ def basic_process(title, text):
     text = re.sub("<score.*?</score>", "", text, flags=re.DOTALL)
 
     # clean residual mess from xml dump that shouldn't have made its way here
+    # 清理从 XML 转储中残留的不应进入正文的杂项。
     text = re.sub("\| ?item[0-9]?_?style= ?.*? ", " ", text)
     text = re.sub("\| ?col[0-9]?_?style= ?.*? ", " ", text)
     text = re.sub("\| ?row[0-9]?_?style= ?.*? ", " ", text)
@@ -130,6 +133,7 @@ def basic_process(title, text):
 
 def split_list(lst, n):
     """Split a list into n roughly equal parts."""
+    # 把输入序列拆成供并行工作进程处理的子序列。
     k, m = divmod(len(lst), n)
     return [lst[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n)]
 
@@ -172,6 +176,7 @@ if __name__ == "__main__":
         nlp = spacy.load("en_core_web_lg")
 
     # extract wiki dump
+    # 提取 Wiki 转储内容。
     temp_dir = os.path.join(Path(args.save_path).parent, "temp")
     os.makedirs(temp_dir)
     subprocess.run(
@@ -194,6 +199,7 @@ if __name__ == "__main__":
 
     documents = {}
     # To avoid duplicate pages
+    # 避免出现重复页面。
     for item in tqdm(corpus):
         title = item["title"]
         text = item["text"]
@@ -223,6 +229,7 @@ if __name__ == "__main__":
 
     if args.use_chonkie:
         # Initialize a Chonkie chunker, based on the chunk_by argument
+        # 根据 chunk_by 参数初始化 Chonkie 切块器。
         if args.chunk_by == "token":
             chunker = chonkie.TokenChunker(tokenizer=args.tokenizer_name_or_path, chunk_size=args.chunk_size)
         elif args.chunk_by == "sentence":
@@ -237,6 +244,7 @@ if __name__ == "__main__":
             raise ValueError(f"Invalid chunking method: {args.chunk_by}")
 
         # Chunk the text into segments, with chunker
+        # 使用切块器把文本拆成片段。
         for title, text in tqdm(zip(all_title, all_text), total=len(all_text)):
             chunks = chunker.chunk(text)
             for chunk in chunks:

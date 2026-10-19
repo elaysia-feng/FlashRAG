@@ -29,6 +29,7 @@ class IterativePipeline_Chat(BaseChatPipeline,IterativePipeline):
         questions = dataset.question
 
         past_generation_result = []  # list of N items
+        # 包含 N 条样本的列表。
         for iter_idx in range(self.iter_num):
             if iter_idx == 0:
                 input_query = questions
@@ -37,6 +38,7 @@ class IterativePipeline_Chat(BaseChatPipeline,IterativePipeline):
                 input_query = [f"{q} {r}" for q, r in zip(questions, past_generation_result)]
 
             # generation-augmented retrieval
+            # 用上一轮生成结果增强检索查询。
             retrieval_results = self.retriever.batch_search(input_query)
             dataset.update_output(f"retrieval_result_iter_{iter_idx}", retrieval_results)
 
@@ -44,6 +46,7 @@ class IterativePipeline_Chat(BaseChatPipeline,IterativePipeline):
             yield from self.display_retrieval_result(retrieval_results[0])
 
             # retrieval-augmented generation
+            # 用召回证据增强回答生成。
             # input_prompts = self.build_prompt(questions, retrieval_results)
             input_prompts = [
                 self.prompt_template.get_string(question=q, retrieval_result=r)
@@ -101,6 +104,7 @@ class SelfRAGPipeline_Chat(BaseChatPipeline, SelfRAGPipeline):
                 break
 
             # retrieve new docs and merge
+            # 检索新文档并合并已有证据。
             new_retrieval_result, new_scores = self.retriever.search(new_thought, return_score=True)
             for doc_item, score in zip(new_retrieval_result, new_scores):
                 id2doc[doc_item["id"]] = doc_item
@@ -150,16 +154,19 @@ class FLAREPipeline_Chat(BaseChatPipeline, FLAREPipeline):
             # input_prompt = self.build_prompt(
             #     question_list=[question], use_reference=False, previous_gen=final_gen_result)[0]
             # scores: token logits of the whole generation seq
+            # 整段生成序列中各 token 的 logits。
             round_gen_output, scores = self.generator.generate(
                 input_prompt, return_scores=True, stop=self.stop_sym, max_new_tokens=self.look_ahead_steps
             )
             round_gen_output, scores = round_gen_output[0], scores[0]
             # next_sent_scores: token logits of the first sent in generation seq
+            # 新生成文本中第一句话的 token logits。
             next_sent, next_sent_score = self.get_next_sentence(round_gen_output, scores)
 
             yield from self.display_middle_result(next_sent, 'Next Sentence')
 
             # judge next sentence
+            # 判断下一句话的置信情况。
             judge_result, query = self.judge_sent_confidence(next_sent, next_sent_score)
             item.update_output(f"judge_result_iter{iter_round}", judge_result)
 
@@ -167,6 +174,7 @@ class FLAREPipeline_Chat(BaseChatPipeline, FLAREPipeline):
 
             if not judge_result:
                 # do retrieval-augmented generation
+                # 执行检索增强生成。
                 retrieval_result = self.retriever.search(query)
                 item.update_output("retrieval_result", retrieval_result)
                 input_prompt = self.prompt_template.get_string(
@@ -241,6 +249,7 @@ class SelfAskPipeline_Chat(BaseChatPipeline, SelfAskPipeline):
                 stop_condition = "Intermediate answer:"
 
             # make sure the result does not end in a new line
+            # 确保结果末尾没有多余换行。
             if len(res) == 0:
                 early_exit = True
                 break
@@ -249,6 +258,7 @@ class SelfAskPipeline_Chat(BaseChatPipeline, SelfAskPipeline):
 
             if "Follow up: " in gen_out:
                 # get the first follow up
+                # 获取第一个后续问题。
                 new_query = [l for l in gen_out.split("\n") if "Follow up: " in l][0].split("Follow up: ")[-1]
                 retrieval_result = self.retriever.search(new_query)
                 yield from self.display_retrieval_result(retrieval_result)
@@ -325,6 +335,7 @@ class IRCOTPipeline_Chat(BaseChatPipeline, IRCOTPipeline):
                 break
 
             # retrieve new docs and merge
+            # 检索新文档并合并已有证据。
             new_retrieval_result, new_scores = self.retriever.search(new_thought, return_score=True)
             for doc_item, score in zip(new_retrieval_result, new_scores):
                 id2doc[doc_item["id"]] = doc_item

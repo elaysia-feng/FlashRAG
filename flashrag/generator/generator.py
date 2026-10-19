@@ -17,6 +17,7 @@ from flashrag.utils import get_device
 
 class BaseGenerator:
     """`BaseGenerator` is a base object of Generator model."""
+    # 统一生成配置与接口；后端子类负责模型加载、编码和解码。
 
     def __init__(self, config):
         self._config = config
@@ -56,11 +57,13 @@ class BaseGenerator:
         Returns:
             list: contains generator's response of each input sample.
         """
+        # 按当前后端处理输入并生成输出，返回值形式以对应实现为准。
         pass
 
 
 class EncoderDecoderGenerator(BaseGenerator):
     """Class for encoder-decoder model"""
+    # 支持 T5/BART 类模型，并处理 FiD 多文档输入。
 
     def __init__(self, config):
         super().__init__(config)
@@ -85,6 +88,7 @@ class EncoderDecoderGenerator(BaseGenerator):
     def encode_passages(self, batch_text_passages: List[List[str]]):
         import torch
         # need size: [batch_size, passage_num, passage_len]
+        # 所需形状为批次数量、文档数量、文档长度。
         passage_ids, passage_masks = [], []
         for text_passages in batch_text_passages:
             p = self.tokenizer(
@@ -111,6 +115,7 @@ class EncoderDecoderGenerator(BaseGenerator):
         generation_params.update(params)
 
         # deal stop params
+        # 处理停止词参数。
         stop_sym = None
         if "stop" in generation_params:
             from flashrag.generator.stop_word_criteria import StopWordCriteria
@@ -132,6 +137,7 @@ class EncoderDecoderGenerator(BaseGenerator):
             batched_prompts = input_list[idx : idx + batch_size]
             if self.fid:
                 # assume each input in input_list is a list, contains K string
+                # 假定每条输入是一个包含 K 个字符串的列表。
                 input_ids, attention_mask = self.encode_passages(batched_prompts)
                 inputs = {
                     "input_ids": input_ids.to(self.device),
@@ -147,6 +153,7 @@ class EncoderDecoderGenerator(BaseGenerator):
                 ).to(self.device)
 
             # TODO: multi-gpu inference
+            # 待办：支持多 GPU 推理。
             import torch
             with torch.inference_mode():
                 if self.fid:
@@ -171,6 +178,7 @@ class EncoderDecoderGenerator(BaseGenerator):
 
 class VLLMGenerator(BaseGenerator):
     """Class for decoder-only generator, based on vllm."""
+    # 使用 vLLM 的采样和批量推理接口生成文本。
 
     def __init__(self, config):
         super().__init__(config)
@@ -232,9 +240,11 @@ class VLLMGenerator(BaseGenerator):
         generation_params["seed"] = self._config["seed"]
 
         # handle param conflict
+        # 处理参数冲突。
         generation_params = resolve_max_tokens(params, generation_params, prioritize_new_tokens=False)
 
         # fix for llama3
+        # 针对 Llama 3 的适配。
         if "stop" in generation_params:
             generation_params["stop"].append("<|eot_id|>")
             generation_params["include_stop_str_in_output"] = True
@@ -288,6 +298,7 @@ class VLLMGenerator(BaseGenerator):
 
 class HFCausalLMGenerator(BaseGenerator):
     """Class for decoder-only generator, based on hf."""
+    # 使用 Transformers 的因果语言模型生成回答。
 
     def __init__(self, config, model=None):
         super().__init__(config)
@@ -302,6 +313,7 @@ class HFCausalLMGenerator(BaseGenerator):
 
     def _load_model(self, model=None):
         r"""Load model and tokenizer for generator."""
+        # 加载生成器的模型与分词器。
         if model is None:
             model = AutoModelForCausalLM.from_pretrained(
                 self.model_path,
@@ -327,6 +339,7 @@ class HFCausalLMGenerator(BaseGenerator):
             trust_remote_code=True,
         )
         # get original embedding weight matrix
+        # 取得原始 token 嵌入权重矩阵。
         embedding_layer = self.model.get_input_embeddings()
         embedding_weights = embedding_layer.weight
         original_vocab_size, embedding_dim = embedding_weights.shape
@@ -335,23 +348,29 @@ class HFCausalLMGenerator(BaseGenerator):
         new_tokens_length = new_tokens_weights.shape[0]
 
         # expand vocabulary
+        # 扩展词表。
         new_tokens = [token_name_func(idx) for idx in range(new_tokens_length)]
         self.tokenizer.add_tokens(new_tokens)
 
         # create new embedding matrix
+        # 创建新的嵌入矩阵。
         new_vocab_size = original_vocab_size + new_tokens_length
         new_embedding_weights = torch.zeros(new_vocab_size, embedding_dim)
 
         # copy original embeddings to the new weights
+        # 将原有嵌入复制到新权重中。
         new_embedding_weights[:original_vocab_size, :] = embedding_weights
 
         # append virtual token embeddings to the new weights
+        # 在新权重尾部追加虚拟 token 嵌入。
         for token, embedding in zip(new_tokens, new_tokens_weights):
             token_id = self.tokenizer.convert_tokens_to_ids(token)
             new_embedding_weights[token_id] = embedding
 
         # update the embedding table
+        # 更新嵌入表。
         # note: we should avoid using the function resize_token_embeddings() because this function will also change the lm_head of the model
+        # 避免调用 resize_token_embeddings，因为它还会修改模型的 lm_head。
         embedding_layer.weight.data = new_embedding_weights
         self.model.eval()
         self.model.cuda()
@@ -365,6 +384,7 @@ class HFCausalLMGenerator(BaseGenerator):
         **params,
     ):
         """Generate batches one by one. The generated content needs to exclude input."""
+        # 按当前后端处理输入并生成输出，返回值形式以对应实现为准。
 
         if isinstance(input_list, str):
             input_list = [input_list]
@@ -375,6 +395,7 @@ class HFCausalLMGenerator(BaseGenerator):
         generation_params.update(params)
 
         # deal stop params
+        # 处理停止词参数。
         stop_sym = None
         if "stop" in generation_params:
             from flashrag.generator.stop_word_criteria import StopWordCriteria
@@ -392,6 +413,7 @@ class HFCausalLMGenerator(BaseGenerator):
         generation_params = resolve_max_tokens(params, generation_params, prioritize_new_tokens=True)
 
         # set eos token for llama
+        # 为 Llama 设置结束 token。
         if "llama" in self.model_name.lower():
             extra_eos_tokens = [
                 self.tokenizer.eos_token_id,
@@ -433,6 +455,7 @@ class HFCausalLMGenerator(BaseGenerator):
                 scores.extend(gen_score)
 
             # get additinoal info
+            # 获取额外信息。
             if return_dict:
                 batch_generated_token_ids = generated_ids.detach().cpu()
                 batch_generated_token_logits = (
@@ -488,15 +511,19 @@ class HFCausalLMGenerator(BaseGenerator):
                 if stop_sym is not None:
                     strip_stopword = True
                     # Find the first occurrence of any stop word
+                    # 查找任意停止词首次出现的位置。
                     lower_stop_index = len(new_text)  # Default to end of text
+                    # 默认截取到文本末尾。
                     for sym in stop_sym:
                         stop_index = new_text.find(sym)
                         if stop_index != -1:
                             # Adjust stop index based on whether we're stripping the stop word
+                            # 根据是否移除停止词调整截断位置。
                             stop_index += 0 if strip_stopword else len(sym)
                             lower_stop_index = min(stop_index, lower_stop_index)
 
                     # Cut the text at the first stop word found (if any)
+                    # 在找到的第一个停止词处截断文本。
                     new_text = new_text[:lower_stop_index]
 
                 responses.append(new_text.strip())
@@ -529,8 +556,10 @@ class HFCausalLMGenerator(BaseGenerator):
             logits = logits[0, len(input_ids) - 1 : len(context_ids) - 1, :]
             logits = logits.to(torch.float32).detach().cpu()
             # softmax to normalize
+            # 通过 softmax 归一化为概率。
             probs = torch.softmax(logits, dim=-1)
             # obtain probs of target_ids
+            # 提取目标 token 标识对应的概率。
             target_probs = probs[range(len(target_ids)), target_ids].numpy()
 
         return logits, target_probs
@@ -542,9 +571,11 @@ class FastChatGenerator(HFCausalLMGenerator):
 
     def _load_model(self, model=None):
         r"""Load model and tokenizer for generator."""
+        # 加载生成器的模型与分词器。
 
         def get_gpu_memory():
             """Get available memory for each GPU."""
+            # 查询可用 GPU 的显存信息，供模型资源分配使用。
             import torch
             gpu_memory = []
             for gpu_id in range(self.gpu_num):

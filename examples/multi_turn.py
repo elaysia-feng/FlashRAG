@@ -1,6 +1,7 @@
 """
 A simple case to use generator for multi-turn interaction
 """
+# 展示如何用生成器进行多轮交互。
 import argparse
 from flashrag.config import Config
 from flashrag.utils import get_generator, get_dataset, get_retriever
@@ -26,6 +27,7 @@ prompt_template = PromptTemplate(config)
 messages = [{"role":"system", "content":"You are a helpful assistant, please follow the user's instructions to complete the task."}]
 
 ### turn 1
+# 第一轮对话。
 messages.append({"role": "user", "content":"Who is the wife of the current US President?"})
 print(messages)
 input_prompt = prompt_template.get_string(messages=messages)
@@ -34,8 +36,10 @@ output = generator.generate(input_prompt)[0]
 print(f"#### Turn 1 output: {output}")
 
 ### turn 2
+# 第二轮对话。
 messages.append({"role": "system", "content": output})
 # add new input here
+# 在这里添加新的输入。
 messages.append({"role": "user", "content": "Your answer is incorrect, can you provide a high-quality answer again?"})
 input_prompt = prompt_template.get_string(messages=messages)
 print(f"#### Turn 2 input: {input_prompt}")

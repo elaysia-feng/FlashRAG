@@ -1,10 +1,16 @@
 # This workflow will upload a Python Package using Twine when a release is created
+# 创建发布版本时，此工作流使用 Twine 上传 Python 包。
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
+# 更多信息见上方 GitHub Actions 发布文档链接。
 
 # This workflow uses actions that are not certified by GitHub.
+# 此工作流使用了未经 GitHub 认证的第三方 Action。
 # They are provided by a third-party and are governed by
+# 这些 Action 由第三方提供。
 # separate terms of service, privacy policy, and support
+# 它们受各自的服务条款、隐私政策和支持规则约束。
 # documentation.
+# 具体约定见对应文档。
 
 name: Publish Python Package
 

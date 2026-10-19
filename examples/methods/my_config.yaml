@@ -1,5 +1,7 @@
 # ------------------------------------------------Global Paths------------------------------------------------#
+# 全局路径设置。
 # Paths to models
+# 模型名称与模型路径的映射。
 model2path:
   e5: "intfloat/e5-base-v2"
   bge: "BAAI/bge-base-en-v1.5"
@@ -11,6 +13,7 @@ model2path:
   llama3-8B-instruct: "meta-llama/Meta-Llama-3-8B-Instruct"
 
 # Pooling methods for each embedding model
+# 各嵌入模型使用的池化方式。
 model2pooling:
   e5: "mean"
   bge: "cls"
@@ -19,82 +22,125 @@ model2pooling:
   dpr: cls
 
 # Indexes path for retrieval models
+# 各检索模型对应的索引路径。
 method2index:
   e5: ~
   bm25: ~
   contriever: ~
 
 # ------------------------------------------------Environment Settings------------------------------------------------#
+# 运行环境设置。
 # Directory paths for data and outputs
+# 数据与输出目录。
 data_dir: "dataset/"
 save_dir: "output/"
 
 gpu_id: "0,1,2,3"
 dataset_name: "nq" # name of the dataset in data_dir
+# data_dir 下的数据集名称。
 split: [ "test" ]  # dataset split to load (e.g. train,dev,test)
+# 要加载的数据划分，例如 train、dev 或 test。
 
 # Sampling configurations for testing
+# 测试采样设置。
 test_sample_num: ~  # number of samples to test (only work in dev/test split), if None, test all samples
+# dev/test 划分的采样数量；为 None 时使用全部样本。
 random_sample: False # whether to randomly sample the test samples
+# 是否随机选择测试样本。
 
 # Seed for reproducibility
+# 设置随机种子，便于复现实验。
 seed: 2024
 
 # Whether save intermediate data
+# 是否保存推理中间结果。
 save_intermediate_data: True
 save_note: 'experiment'
 
 # -------------------------------------------------Retrieval Settings------------------------------------------------#
+# 检索设置。
 # If set the name, the model path will be find in global paths
+# 指定模型名称后，可从全局映射中查找对应模型路径。
 retrieval_method: "e5"  # name or path of the retrieval model. 
+# 检索模型的名称或路径。
 index_path: ~ # set automatically if not provided. 
+# 未提供时自动补齐。
 faiss_gpu: False # whether use gpu to hold index
+# 是否将索引放在 GPU 上。
 corpus_path: ~  # path to corpus in '.jsonl' format that store the documents
+# 保存知识文档的 JSONL 语料路径。
 
 instruction: ~ # instruction for retrieval model
+# 检索模型使用的查询指令。
 retrieval_topk: 5 # number of retrieved documents
+# 每条查询召回的文档数量。
 retrieval_batch_size: 256  # batch size for retrieval
+# 检索批次大小。
 retrieval_use_fp16: True  # whether to use fp16 for retrieval model
+# 检索模型是否使用半精度。
 retrieval_query_max_length: 128  # max length of the query
+# 查询的最大输入长度。
 save_retrieval_cache: False # whether to save the retrieval cache
+# 是否保存检索缓存。
 use_retrieval_cache: False # whether to use the retrieval cache
+# 是否读取并复用检索缓存。
 retrieval_cache_path: ~ # path to the retrieval cache
+# 检索缓存文件路径。
 retrieval_pooling_method: ~ # set automatically if not provided
+# 未提供时自动补齐。
 
 use_reranker: False # whether to use reranker
+# 是否启用重排器。
 rerank_model_name: ~ # same as retrieval_method
+# 与 retrieval_method 一样，用名称指定对应模型。
 rerank_model_path: ~ # path to reranker model, path will be automatically find in `retriever_model2path`
+# 重排模型路径；原注释使用 retriever_model2path 这一名称，实际映射以 Config 实现为准。
 rerank_pooling_method: ~
 rerank_topk: 5  # number of remain documents after reranking
+# 重排后保留的文档数量。
 rerank_max_length: 512
 rerank_batch_size: 256 # batch size for reranker
+# 重排批次大小。
 rerank_use_fp16: True
 
 # -------------------------------------------------Generator Settings------------------------------------------------#
+# 生成设置。
 framework: vllm # inference frame work of LLM, supporting: 'hf','vllm','fschat'
+# 大语言模型推理后端，原配置列出 hf、vllm、fschat。
 generator_model: "llama3-8B-instruct" # name or path of the generator model
+# 生成模型的名称或路径。
 generator_max_input_len: 2048  # max length of the input
+# 生成模型的最大输入长度。
 generator_batch_size: 2 # batch size for generation, invalid for vllm
+# 生成批次大小；vLLM 不使用此配置。
 generation_params:
   do_sample: False
   max_tokens: 32
 use_fid: False # whether to use FID, only valid in encoder-decoder model
+# 是否使用 FiD，仅对相应编码器—解码器模型路径有效。
 
 
 # -------------------------------------------------Refiner Settings------------------------------------------------#
+# 证据压缩设置。
 # If set, the refiner will be used to refine the retrieval documents.
+# 指定压缩器后，对检索文档执行精炼或压缩。
 refiner_name: ~
 refiner_model_path: ~
 
 # Used for extractive method (e.g embedding models)
+# 抽取式压缩方法使用的设置，例如嵌入模型。
 refiner_topk: 5 # number of remain sentence after refiner
+# 压缩后保留的句子数量。
 refiner_pooling_method: 'mean' # pooling method of refiner model
+# 压缩模型使用的池化方式。
 refiner_encode_max_length: 256
 # Used for abstractive method (e.g. generation models like bart-large-cnn)
+# 摘要式压缩方法使用的设置，例如 BART 生成模型。
 refiner_max_input_length: 1024
 refiner_max_output_length: 512
 
 # Specify settings for llmlingua
+# LLMLingua 专用设置。
 llmlingua_config:
   rate: 0.55
   condition_in_question: 'after_condition'
@@ -107,12 +153,16 @@ sc_config:
   'reduce_ratio': 0.5
 
 # -------------------------------------------------Evaluation Settings------------------------------------------------#
+# 评估设置。
 # Metrics to evaluate the result
+# 需要计算的评估指标。
 metrics: [ 'em','f1','acc','precision','recall']
 # Specify setting for metric, will be called within certain metrics
+# 指标专用参数，由相应指标实现读取。
 metric_setting:
   retrieval_recall_topk: 5
 save_metric_score: True #　whether to save the metric score into txt file
+# 是否把指标得分保存到文本文件。
 
 
 

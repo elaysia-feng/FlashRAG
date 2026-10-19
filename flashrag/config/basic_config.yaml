@@ -1,5 +1,7 @@
 # ------------------------------------------------Global Paths------------------------------------------------#
+# 全局路径设置。
 # Paths to various models
+# 各类模型的名称与路径映射。
 model2path:
   e5: "intfloat/e5-base-v2"
   bge: "BAAI/bge-base-en-v1.5"
@@ -10,6 +12,7 @@ model2path:
   llama2-13B-chat: "meta-llama/Llama-2-13b-chat-hf"
 
 # Pooling methods for each embedding model
+# 各嵌入模型使用的池化方式。
 model2pooling:
   e5: "mean"
   bge: "cls"
@@ -18,6 +21,7 @@ model2pooling:
   dpr: "pooler"
 
 # Indexes path for retrieval models
+# 各检索模型对应的索引路径。
 method2index:
   e5: ~
   bm25: ~
@@ -27,65 +31,105 @@ method2index:
     "image": "path/to/image_index"
 
 # ------------------------------------------------Environment Settings------------------------------------------------#
+# 运行环境设置。
 # Directory paths for data and outputs
+# 数据与输出目录。
 data_dir: "dataset/"
 save_dir: "output/"
 
 gpu_id: "0,1,2,3"
 dataset_name: "nq" # name of the dataset in data_dir
+# data_dir 下的数据集名称。
 split: ["test"] # dataset split to load (e.g. train,dev,test)
+# 要加载的数据划分，例如 train、dev 或 test。
 
 # Sampling configurations for testing
+# 测试采样设置。
 test_sample_num: ~ # number of samples to test (only work in dev/test split), if None, test all samples
+# dev/test 划分的采样数量；为 None 时使用全部样本。
 random_sample: False # whether to randomly sample the test samples
+# 是否随机选择测试样本。
 
 # Seed for reproducibility
+# 设置随机种子，便于复现实验。
 seed: 2024
 
 # Whether save intermediate data
+# 是否保存推理中间结果。
 save_intermediate_data: True
 save_note: "experiment"
 is_reasoning: false
 
 # -------------------------------------------------Retrieval Settings------------------------------------------------#
+# 检索设置。
 # If set the name, the model path will be find in global paths
+# 指定模型名称后，可从全局映射中查找对应模型路径。
 retrieval_method: "e5" # name or path of the retrieval model.
+# 检索模型的名称或路径。
 retrieval_model_path: ~ # path to the retrieval model
+# 检索模型路径。
 index_path: ~ # set automatically if not provided.
+# 未提供时自动补齐。
 multimodal_index_path_dict: ~ # use for multimodal retreiver, example format: {'text': 'path/to/text_index' or None, 'image': 'path/to/image_index' or None}
+# 多模态检索索引映射，分别指定 text 和 image 的索引路径，未使用的模态可为 None。
 faiss_gpu: False # whether use gpu to hold index
+# 是否将索引放在 GPU 上。
 corpus_path: ~ # path to corpus in '.jsonl' format that store the documents
+# 保存知识文档的 JSONL 语料路径。
 
 instruction: ~ # instruction for the retrieval model
+# 检索模型使用的查询指令。
 retrieval_topk: 5 # number of retrieved documents
+# 每条查询召回的文档数量。
 retrieval_batch_size: 256 # batch size for retrieval
+# 检索批次大小。
 retrieval_use_fp16: True # whether to use fp16 for retrieval model
+# 检索模型是否使用半精度。
 retrieval_query_max_length: 128 # max length of the query
+# 查询的最大输入长度。
 save_retrieval_cache: False # whether to save the retrieval cache
+# 是否保存检索缓存。
 use_retrieval_cache: False # whether to use the retrieval cache
+# 是否读取并复用检索缓存。
 retrieval_cache_path: ~ # path to the retrieval cache
+# 检索缓存文件路径。
 retrieval_pooling_method: ~ # set automatically if not provided
+# 未提供时自动补齐。
 bm25_backend: bm25s # pyserini, bm25s
+# 可选 BM25 后端为 Pyserini 或 bm25s。
 use_sentence_transformer: False
 silent_retrieval: True # whether to silent the retrieval process
+# 是否隐藏检索进度展示。
 
 seismic_query_cut: 10 # parameters for seismic. See seismic paper for full details
+# Seismic 参数，详细含义参见其论文。
 seismic_heap_factor: 0.8 # parameters for seismic. See seismic paper for full details
+# Seismic 参数，详细含义参见其论文。
 # -------------------------------------------------Reranker Settings------------------------------------------------#
+# 重排设置。
 use_reranker: False # whether to use reranker
+# 是否启用重排器。
 rerank_model_name: ~ # same as retrieval_method
+# 与 retrieval_method 一样，用名称指定对应模型。
 rerank_model_path: ~ # path to reranker model, path will be automatically find in `model2path`
+# 重排模型路径；未指定时可从 model2path 映射中补齐。
 rerank_pooling_method: ~
 rerank_topk: 5 # number of remain documents after reranking
+# 重排后保留的文档数量。
 rerank_max_length: 512
 rerank_batch_size: 256 # batch size for reranker
+# 重排批次大小。
 rerank_use_fp16: True
 
 # If you want to use multi retrievers, you can set the following parameters
+# 使用多个检索器时，可设置下方参数。
 use_multi_retriever: False # whether to use multi retrievers
+# 是否启用多检索器。
 multi_retriever_setting:
   merge_method: "concat" # support 'concat', 'rrf', 'rerank'
+  # 支持拼接、RRF 融合和重排三种合并方式。
   topk: 5 # final remain documents, only used in 'rrf' and 'rerank' merge
+  # 融合后保留的文档数量，仅用于 RRF 和重排策略。
   rerank_model_name: ~
   rerank_model_path: ~
   retriever_list:
@@ -99,32 +143,44 @@ multi_retriever_setting:
       retrieval_model_path: ~
 
 # -------------------------------------------------Generator Settings------------------------------------------------#
+# 生成设置。
 framework: fschat # inference frame work of LLM, supporting: 'hf','vllm','fschat', 'openai'
+# 大语言模型推理后端，支持 hf、vllm、fschat 和 openai。
 generator_model: "llama3-8B-instruct" # name or path of the generator model
+# 生成模型的名称或路径。
 # setting for openai model, only valid in openai framework
+# OpenAI 兼容接口设置，仅在 openai 后端下使用。
 openai_setting:
   api_key: ~
   base_url: ~
 
 generator_model_path: ~
 generator_max_input_len: 1024 # max length of the input
+# 生成模型的最大输入长度。
 generator_batch_size: 4 # batch size for generation, invalid for vllm
+# 生成批次大小；vLLM 不使用此配置。
 generation_params:
   #do_sample: false
   max_tokens: 32
   #temperature: 1.0
   #top_p: 1.0
 use_fid: False # whether to use FID, only valid in encoder-decoder model
+# 是否使用 FiD，仅对相应编码器—解码器模型路径有效。
 gpu_memory_utilization: 0.85 # ratio of gpu's memory usage for generator
+# 生成模型可使用的 GPU 显存比例。
 
 # -------------------------------------------------Evaluation Settings------------------------------------------------#
+# 评估设置。
 # Metrics to evaluate the result
+# 需要计算的评估指标。
 metrics: ["em", "f1", "acc", "precision", "recall", "input_tokens"]
 
 # Specify setting for metric, will be called within certain metrics
+# 指标专用参数，由相应指标实现读取。
 metric_setting:
   retrieval_recall_topk: 5
   golden_document_id_field: "golden_doc_ids"
   document_id_field: ~
   tokenizer_name: "gpt-4"
 save_metric_score: True #　whether to save the metric score into txt file
+# 是否把指标得分保存到文本文件。

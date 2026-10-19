@@ -1,19 +1,26 @@
 OPENAI_MODEL_DICT = {
     # chat
+    # 聊天模型。
     "gpt-4o": "o200k_base",
     "gpt-4": "cl100k_base",
     "gpt-3.5-turbo": "cl100k_base",
     "gpt-3.5": "cl100k_base",  # Common shorthand
+    # 常见模型名称简写。
     "gpt-35-turbo": "cl100k_base",  # Azure deployment name
+    # Azure 部署名称。
     # base
+    # 基础模型。
     "davinci-002": "cl100k_base",
     "babbage-002": "cl100k_base",
     # embeddings
+    # 嵌入模型。
     "text-embedding-ada-002": "cl100k_base",
     "text-embedding-3-small": "cl100k_base",
     "text-embedding-3-large": "cl100k_base",
     # DEPRECATED MODELS
+    # 已弃用模型。
     # text (DEPRECATED)
+    # 已弃用的文本模型。
     "text-davinci-003": "p50k_base",
     "text-davinci-002": "p50k_base",
     "text-davinci-001": "r50k_base",
@@ -25,6 +32,7 @@ OPENAI_MODEL_DICT = {
     "babbage": "r50k_base",
     "ada": "r50k_base",
     # code (DEPRECATED)
+    # 已弃用的代码模型。
     "code-davinci-002": "p50k_base",
     "code-davinci-001": "p50k_base",
     "code-cushman-002": "p50k_base",
@@ -32,9 +40,11 @@ OPENAI_MODEL_DICT = {
     "davinci-codex": "p50k_base",
     "cushman-codex": "p50k_base",
     # edit (DEPRECATED)
+    # 已弃用的编辑模型。
     "text-davinci-edit-001": "p50k_edit",
     "code-davinci-edit-001": "p50k_edit",
     # old embeddings (DEPRECATED)
+    # 已弃用的旧版嵌入模型。
     "text-similarity-davinci-001": "r50k_base",
     "text-similarity-curie-001": "r50k_base",
     "text-similarity-babbage-001": "r50k_base",
@@ -46,6 +56,8 @@ OPENAI_MODEL_DICT = {
     "code-search-babbage-code-001": "r50k_base",
     "code-search-ada-code-001": "r50k_base",
     # open source
+    # 开源模型。
     "gpt2": "gpt2",
     "gpt-2": "gpt2",  # Maintains consistency with gpt-4
+    # 与 GPT-4 的设置保持一致。
 }

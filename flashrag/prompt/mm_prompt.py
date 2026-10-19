@@ -22,8 +22,10 @@ class MMPromptTemplate:
         content_list = []
         for idx, item in enumerate(retrieval_result):
             # item is multimodal data or raw text
+            # 当前输入可能是多模态样本，也可能是原始文本。
             if 'image' not in item:
                 # raw text item
+                # 原始文本输入。
                 reference_str += f'Example {idx+1}: {item["contents"]}\n'
             else:
                 content_list.append({'type': 'image', 'image': item['image']})
@@ -72,8 +74,10 @@ class GAOKAOMMPromptTemplate(MMPromptTemplate):
             reference_str = ""
             for idx, item in enumerate(retrieval_result):
                 # item is multimodal data or raw text
+                # 当前输入可能是多模态样本，也可能是原始文本。
                 if 'image' not in item:
                     # raw text item
+                    # 原始文本输入。
                     reference_str += f'参考内容 {idx+1}: {item["contents"]}\n'
                 else:
                     content_list.append({'type': 'image', 'image': item['image']})
@@ -117,6 +121,7 @@ class MathVistaPromptTemplate:
         question = item.question if item.question is not None else item.text
         question_image = item.image
         question_type = item.question_type  # 'free_form' or 'multi_choice'
+        # 题型可以是自由回答或多项选择。
 
         messages = []
         if self.system_prompt is not None:
@@ -126,6 +131,7 @@ class MathVistaPromptTemplate:
         reference_str = ""
 
         # Add retrieval results as reference (if available)
+        # 存在检索结果时，将其作为参考材料加入。
         try:
             retrieval_result = item.retrieval_result
         except:
@@ -139,10 +145,12 @@ class MathVistaPromptTemplate:
                 reference_str += f'Example {idx + 1}: {item["text"]}\n'
 
         # Add question image (if available)
+        # 存在问题图片时，将其加入消息。
         if question_image:
             content_list.append({'type': 'image', 'image': question_image})
 
         # Format the user prompt based on question type
+        # 根据题型格式化用户提示词。
         if question_type == 'free_form':
             user_prompt = self.user_prompt_free_form.format(question=question, reference=reference_str)
         elif question_type == 'multi_choice':
@@ -151,6 +159,7 @@ class MathVistaPromptTemplate:
             raise ValueError(f"Unsupported question type: {question_type}")
 
         # Add the formatted user prompt
+        # 添加已格式化的用户提示词。
         content_list.append({'type': 'text', 'text': user_prompt})
         messages.append({"role": "user", "content": content_list})
 

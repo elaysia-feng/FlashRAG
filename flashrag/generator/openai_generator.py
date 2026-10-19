@@ -21,12 +21,14 @@ def get_background_loop():
 
 class OpenaiGenerator:
     """Class for api-based openai models"""
+    # 调用 OpenAI 兼容服务，管理批量异步请求与同步入口。
 
     def __init__(self, config):
         self._config = config
         self.update_config()
         
         # load openai client
+        # 加载 OpenAI 客户端。
         if "api_type" in self.openai_setting and self.openai_setting["api_type"] == "azure":
             del self.openai_setting["api_type"]
             self.client = AsyncAzureOpenAI(**self.openai_setting)
@@ -132,6 +134,7 @@ class OpenaiGenerator:
                 text = res.text
             if 'stop' in generation_params and not any([text.endswith(stop_str) for stop_str in generation_params['stop']]):
                 # current openai api not support including stop, so need to add the stop token
+                # 原注释说明此接口路径需要把停止词补入输出；实际行为以当前后端响应为准。
                 text += generation_params['stop'][0]
             response_texts.append(text)
             if return_scores:

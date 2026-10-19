@@ -4,6 +4,7 @@ from flashrag.evaluator.metrics import BaseMetric
 
 class Evaluator:
     """Evaluator is used to summarize the results of all metrics."""
+    # 统一管理指标注册、数据集评分和结果持久化。
 
     def __init__(self, config):
         self.config = config
@@ -25,6 +26,7 @@ class Evaluator:
 
     def _collect_metrics(self):
         """Collect all classes based on ```BaseMetric```."""
+        # 递归发现 BaseMetric 子类，以 metric_name 建立指标注册表。
 
         def find_descendants(base_class, subclasses=None):
             if subclasses is None:
@@ -45,6 +47,7 @@ class Evaluator:
 
     def evaluate(self, data):
         """Calculate all metric indicators and summarize them."""
+        # 在生成完成后统一计算评估指标并整理结果。
 
         result_dict = {}
         for metric in self.metrics:
@@ -75,6 +78,7 @@ class Evaluator:
     def save_data(self, data, file_name="intermediate_data.json"):
         """Save the evaluated data, including the raw data and the score of each data
         sample on each metric."""
+        # 保存含预测、中间结果及单样本指标的数据集。
 
         save_path = os.path.join(self.save_dir, file_name)
 

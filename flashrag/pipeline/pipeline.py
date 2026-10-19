@@ -8,6 +8,7 @@ class BasicPipeline:
     """Base object of all pipelines. A pipeline includes the overall process of RAG.
     If you want to implement a pipeline, you should inherit this class.
     """
+    # 流水线基类；子类负责推理，evaluate 负责可选后处理、评估和检索缓存保存。
 
     def __init__(self, config, prompt_template=None):
         self.config = config
@@ -21,20 +22,24 @@ class BasicPipeline:
 
     def run(self, dataset):
         """The overall inference process of a RAG framework."""
+        # 执行当前流水线的问答推理流程。
         pass
 
     def evaluate(self, dataset, do_eval=True, pred_process_fun=None):
         """The evaluation process after finishing overall generation"""
+        # 在生成完成后统一计算评估指标并整理结果。
 
         if pred_process_fun is not None:
             dataset = pred_process_fun(dataset)
 
         if do_eval:
             # evaluate & save result
+            # 评估并保存结果。
             eval_result = self.evaluator.evaluate(dataset)
             print(eval_result)
 
         # save retrieval cache
+        # 保存检索缓存。
         if self.save_retrieval_cache:
             self.retriever._save_cache()
 
@@ -47,6 +52,7 @@ class SequentialPipeline(BasicPipeline):
         inference stage:
             query -> pre-retrieval -> retriever -> post-retrieval -> generator
         """
+        # 推理顺序：查询、检索前处理、检索、检索后处理、生成。
 
         super().__init__(config, prompt_template)
         if generator is None:
@@ -60,6 +66,7 @@ class SequentialPipeline(BasicPipeline):
             self.retriever = retriever
 
         # TODO: add rewriter module
+        # 待办：加入查询改写模块。
 
         self.use_fid = config["use_fid"]
 
@@ -70,6 +77,7 @@ class SequentialPipeline(BasicPipeline):
 
     def naive_run(self, dataset, do_eval=True, pred_process_fun=None):
         # direct generation without RAG
+        # 不使用 RAG，直接生成答案。
         input_prompts = [self.prompt_template.get_string(question=q) for q in dataset.question]
         dataset.update_output("prompt", input_prompts)
 
@@ -88,6 +96,7 @@ class SequentialPipeline(BasicPipeline):
             input_prompt_flag = self.refiner.input_prompt_flag
             if "llmlingua" in self.refiner.name and input_prompt_flag:
                 # input prompt
+                # 输入是完整提示词。
                 input_prompts = [
                     self.prompt_template.get_string(question=q, retrieval_result=r)
                     for q, r in zip(dataset.question, dataset.retrieval_result)
@@ -96,6 +105,7 @@ class SequentialPipeline(BasicPipeline):
                 input_prompts = self.refiner.batch_run(dataset)
             else:
                 # input retrieval docs
+                # 输入是检索文档。
                 refine_results = self.refiner.batch_run(dataset)
                 dataset.update_output("refine_result", refine_results)
                 input_prompts = [
@@ -120,6 +130,7 @@ class SequentialPipeline(BasicPipeline):
         dataset.update_output("prompt", input_prompts)
 
         # delete used refiner to release memory
+        # 删除已经使用完的压缩器，以释放内存或显存资源。
         if self.refiner:
             del self.refiner
         pred_answer_list = self.generator.generate(input_prompts)
@@ -136,6 +147,7 @@ class ConditionalPipeline(BasicPipeline):
         inference stage:
             query -> judger -> sequential pipeline or naive generate
         """
+        # 推理顺序：问题先经判别器，再选择检索流水线或直接生成。
 
         super().__init__(config, prompt_template)
 
@@ -161,10 +173,12 @@ class ConditionalPipeline(BasicPipeline):
 
     def run(self, dataset, do_eval=True, pred_process_fun=None):
         # judge_result: list of bool element, representing whether to use retrieval
+        # 判别结果是布尔列表，表示每条问题是否需要检索。
         judge_result = self.judger.judge(dataset)
         dataset.update_output("judge_result", judge_result)
 
         # split dataset based on judge_result
+        # 按判别结果拆分数据集。
         dataset_split = split_dataset(dataset, judge_result)
         pos_dataset, neg_dataset = dataset_split[True], dataset_split[False]
 
@@ -173,6 +187,7 @@ class ConditionalPipeline(BasicPipeline):
         neg_dataset = self.sequential_pipeline.naive_run(neg_dataset, do_eval=False)
 
         # merge datasets into original format
+        # 合并各分组并恢复原始样本顺序。
         dataset = merge_dataset(dataset_split, judge_result)
 
         dataset = self.evaluate(dataset, do_eval=do_eval, pred_process_fun=pred_process_fun)
@@ -192,6 +207,7 @@ class AdaptivePipeline(BasicPipeline):
     ):
         super().__init__(config)
         # load adaptive classifier as judger
+        # 加载自适应分类器作为判别器。
         self.judger = get_judger(config)
 
         if generator is None:
@@ -203,6 +219,7 @@ class AdaptivePipeline(BasicPipeline):
         self.retriever = retriever
 
         # Load three pipeline for three types of query: naive/single-hop/multi-hop
+        # 为无检索、单跳和多跳问题分别加载三种流水线。
         from flashrag.pipeline import IRCOTPipeline
 
         if norag_template is None:
@@ -231,10 +248,12 @@ class AdaptivePipeline(BasicPipeline):
 
     def run(self, dataset, do_eval=True, pred_process_fun=None):
         # judge_result: choice result representing which pipeline to use(e.g. A, B, C)
+        # 判别结果是 A、B、C 等标签，表示应使用哪条流水线。
         judge_result = self.judger.judge(dataset)
         dataset.update_output("judge_result", judge_result)
 
         # split dataset based on judge_result
+        # 按判别结果拆分数据集。
         dataset_split = split_dataset(dataset, judge_result)
         for symbol, symbol_dataset in dataset_split.items():
             if symbol == "A":
@@ -247,6 +266,7 @@ class AdaptivePipeline(BasicPipeline):
                 assert False, "Unknown symbol!"
 
         # merge datasets into original format
+        # 合并各分组并恢复原始样本顺序。
         dataset = merge_dataset(dataset_split, judge_result)
 
         dataset = self.evaluate(dataset, do_eval=do_eval, pred_process_fun=pred_process_fun)

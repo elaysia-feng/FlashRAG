@@ -8,6 +8,7 @@ import numpy as np
 
 class BaseRefiner:
     r"""Base object of Refiner method"""
+    # 证据压缩器基类；输入样本中的检索文档或完整提示词。
 
     def __init__(self, config):
         self.config = config
@@ -25,6 +26,7 @@ class BaseRefiner:
         Returns:
             str: refining result of this item
         """
+        # 执行当前流水线的问答推理流程。
         pass
 
     def batch_run(self, dataset, batch_size=None) -> List[str]:
@@ -33,6 +35,7 @@ class BaseRefiner:
 
 class LLMLinguaRefiner(BaseRefiner):
     """Implementation for (Long)LLMLingua."""
+    # 将证据或提示词交给 LLMLingua 压缩，返回供生成使用的文本。
 
     def __init__(self, config):
         super().__init__(config)
@@ -74,10 +77,12 @@ class LLMLinguaRefiner(BaseRefiner):
         for item in tqdm(dataset, desc="Refining process: "):
             question = item.question
             # TODO: suit more cases
+            # 待办：适配更多输入情况。
             if self.input_prompt_flag:
                 input_prompt = item.prompt
                 prompt_split = input_prompt.split("\n\n")
                 # need fixed format prompt: instr + demon(retrieval results) + question
+                # 需要固定的提示结构：指令、含检索证据的示例、问题。
                 instruction, question = prompt_split[0], prompt_split[-1]
                 demonstration = "\n".join(prompt_split[1:-1])
                 item_output = self.refiner.compress_prompt(
@@ -99,6 +104,7 @@ class LLMLinguaRefiner(BaseRefiner):
 
 class SelectiveContextRefiner(BaseRefiner):
     """Implementation for Selective Context"""
+    # 按信息量压缩检索文本，减少上下文长度。
 
     def __init__(self, config):
         super().__init__(config)
@@ -124,6 +130,7 @@ class SelectiveContextRefiner(BaseRefiner):
 
     def batch_run(self, dataset):
         # only use text
+        # 只使用文本内容。
         all_inputs = []
         for item in dataset:
             retrieval_result = item.retrieval_result
@@ -140,15 +147,18 @@ class ExtractiveRefiner(BaseRefiner):
     """Implementation for Extractive compressor.
     Using retrieval method to select sentences or other granularity data.
     """
+    # 通过问题与句子相关性抽取证据片段。
 
     def __init__(self, config):
         super().__init__(config)
         # number of keeping sentences
+        # 保留的句子数量。
         self.topk = config["refiner_topk"]
         self.pooling_method = config["refiner_pooling_method"]
         self.encode_max_length = config["refiner_encode_max_length"]
         self.mini_batch_size = config['refiner_mini_batch_size'] if 'refiner_mini_batch_size' in config else 256
         # load model
+        # 加载模型。
         self.encoder = Encoder(
             model_name=self.name, 
             model_path=self.model_path, 
@@ -160,6 +170,7 @@ class ExtractiveRefiner(BaseRefiner):
     def batch_run(self, dataset, batch_size=16):
         questions = dataset.question
         # only use text
+        # 只使用文本内容。
         retrieval_results = dataset.retrieval_result
         retrieval_results = [
             ["\n".join(doc_item["contents"].split("\n")[1:]) for doc_item in item_result]
@@ -167,11 +178,13 @@ class ExtractiveRefiner(BaseRefiner):
         ]
 
         # split into sentences: [[sent1, sent2,...], [...]]
+        # 按文档分句，形成每篇文档对应的句子列表。
         sent_lists = [
             [i.strip() for i in re.split(r"(?<=[.!?])\s+(?![a-z])", " ".join(res)) if len(i.strip()) > 5]
             for res in retrieval_results
         ]
         score_lists = []  # matching scores, size == sent_lists
+        # 匹配分数的数量与句子列表对应。
         for idx in tqdm(range(0, len(questions), batch_size), desc="Refining process: "):
             batch_questions = questions[idx : idx + batch_size]
             batch_sents = sent_lists[idx : idx + batch_size]
@@ -193,6 +206,7 @@ class ExtractiveRefiner(BaseRefiner):
                 start_idx += len(single_list)
 
         # select topk sents
+        # 选择得分最高的 topk 个句子。
         retain_lists = []
         for sent_scores, sent_list in zip(score_lists, sent_lists):
             assert len(sent_scores) == len(sent_list)
@@ -210,6 +224,7 @@ class AbstractiveRecompRefiner(BaseRefiner):
     """Implementation for Abstractive RECOMP compressor:
     RECOMP: Improving Retrieval-Augmented LMs with Compression and Selective Augmentation.
     """
+    # 用序列到序列模型把检索证据生成压缩摘要。
 
     def __init__(self, config):
         super().__init__(config)
@@ -218,6 +233,7 @@ class AbstractiveRecompRefiner(BaseRefiner):
         self.max_output_length = config["refiner_max_output_length"]
 
         # load model
+        # 加载模型。
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_path)
         self.model.cuda()
@@ -225,6 +241,7 @@ class AbstractiveRecompRefiner(BaseRefiner):
 
     def batch_run(self, dataset, batch_size=2):
         # only use text
+        # 只使用文本内容。
         retrieval_results = dataset.retrieval_result
         retrieval_results = [
             ["\n".join(doc_item["contents"].split("\n")[1:]) for doc_item in item_result]
@@ -232,6 +249,7 @@ class AbstractiveRecompRefiner(BaseRefiner):
         ]
 
         # input processing in recomp training format
+        # 按 RECOMP 的训练输入格式组织文本。
         format_inputs = [
             "Question: {question}\n Document: {document}\n Summary: ".format(
                 question=item.question, document="\n".join(docs)

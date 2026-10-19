@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Lista delle cartelle da creare
+# 要创建的目录列表。
 folders=("datasets" "indexes" "models" "results" "tests" "webui_configs")
 
 for folder in "${folders[@]}"; do

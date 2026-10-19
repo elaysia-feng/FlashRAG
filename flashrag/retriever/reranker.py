@@ -9,6 +9,7 @@ from flashrag.retriever.encoder import Encoder
 
 class BaseReranker:
     r"""Base object for all rerankers."""
+    # 统一重排入口，具体模型实现文档与查询的相关性打分。
 
     def __init__(self, config):
         self.config = config
@@ -28,12 +29,14 @@ class BaseReranker:
         Return:
             [score(q1,d1), score(q1,d2),... score(q2,d1),...]
         """
+        # 计算查询与文档的相关性，按查询分组的展开顺序返回分数。
         all_scores = []
         return all_scores
 
     @torch.inference_mode(mode=True)
     def rerank(self, query_list, doc_list, batch_size=None, topk=None):
         r"""Rerank doc_list."""
+        # 统一输入分组，计算相关性后对每组文档降序排列并保留 topk。
         if batch_size is None:
             batch_size = self.batch_size
         if topk is None:
@@ -48,6 +51,7 @@ class BaseReranker:
             warnings.warn("The number of doc returned by the retriever is less than the topk.")
 
         # get doc contents
+        # 取得文档正文。
         doc_contents = []
         for docs in doc_list:
             if all([isinstance(doc, str) for doc in docs]):
@@ -59,6 +63,7 @@ class BaseReranker:
         assert len(all_scores) == sum([len(docs) for docs in doc_list])
 
         # sort docs
+        # 对文档排序。
         start_idx = 0
         final_scores = []
         final_docs = []
@@ -85,6 +90,7 @@ class CrossReranker(BaseReranker):
     @torch.inference_mode(mode=True)
     def get_rerank_scores(self, query_list, doc_list, batch_size):
         # flatten all pairs
+        # 展平全部查询与文档配对。
         all_pairs = []
         for query, docs in zip(query_list, doc_list):
             all_pairs.extend([[query, doc] for doc in docs])

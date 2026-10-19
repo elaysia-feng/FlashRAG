@@ -19,12 +19,14 @@ from functools import lru_cache
 
 class BaseTokenizer:
     """A base dummy tokenizer to derive from."""
+    # 分词器接口基类，供具体 BLEU 分词实现继承。
 
     def signature(self):
         """
         Returns a signature for the tokenizer.
         :return: signature string
         """
+        # 返回分词器的签名信息。
         return "none"
 
     def __call__(self, line):
@@ -33,6 +35,7 @@ class BaseTokenizer:
         :param line: a segment to tokenize
         :return: the tokenized line
         """
+        # 执行当前对象封装的主要操作。
         return line
 
 
@@ -43,15 +46,21 @@ class TokenizerRegexp(BaseTokenizer):
     def __init__(self):
         self._re = [
             # language-dependent part (assuming Western languages)
+            # 与语言相关的处理，这里假设输入为西方语言。
             (re.compile(r"([\{-\~\[-\` -\&\(-\+\:-\@\/])"), r" \1 "),
             # tokenize period and comma unless preceded by a digit
+            # 对前面不是数字的句点和逗号进行分词。
             (re.compile(r"([^0-9])([\.,])"), r"\1 \2 "),
             # tokenize period and comma unless followed by a digit
+            # 对后面不是数字的句点和逗号进行分词。
             (re.compile(r"([\.,])([^0-9])"), r" \1 \2"),
             # tokenize dash when preceded by a digit
+            # 对前面是数字的连字符进行分词。
             (re.compile(r"([0-9])(-)"), r"\1 \2 "),
             # one space only between words
+            # 词之间只保留一个空格。
             # NOTE: Doing this in Python (below) is faster
+            # 注意：下方直接用 Python 处理的方式更快。
             # (re.compile(r'\s+'), r' '),
         ]
 
@@ -61,12 +70,15 @@ class TokenizerRegexp(BaseTokenizer):
         :param line: a segment to tokenize
         :return: the tokenized line
         """
+        # 执行当前对象封装的主要操作。
         for _re, repl in self._re:
             line = _re.sub(repl, line)
 
         # no leading or trailing spaces, single space within words
+        # 删除首尾空白，并将词间空白合并为一个空格。
         # return ' '.join(line.split())
         # This line is changed with regards to the original tokenizer (seen above) to return individual words
+        # 与上方原始分词器不同，此处返回单独的词列表。
         return line.split()
 
 
@@ -84,8 +96,10 @@ class Tokenizer13a(BaseTokenizer):
         :param line: a segment to tokenize
         :return: the tokenized line
         """
+        # 执行当前对象封装的主要操作。
 
         # language-independent part:
+        # 与具体语言无关的处理。
         line = line.replace("<skipped>", "")
         line = line.replace("-\n", "")
         line = line.replace("\n", " ")
@@ -138,6 +152,7 @@ def _get_ngrams(segment, max_order):
       The Counter containing all n-grams upto max_order in segment
       with a count of how many times each n-gram occurred.
     """
+    # 统计指定阶数以内的连续 token 片段，供 BLEU 计算匹配数量。
     ngram_counts = collections.Counter()
     for order in range(1, max_order + 1):
         for i in range(0, len(segment) - order + 1):
@@ -161,6 +176,7 @@ def compute_bleu(reference_corpus, translation_corpus, max_order=4, smooth=False
       3-Tuple with the BLEU score, n-gram precisions, geometric mean of n-gram
       precisions and brevity penalty.
     """
+    # 结合 n-gram 精确率和长度惩罚计算 BLEU，并返回相关统计量。
     matches_by_order = [0] * max_order
     possible_matches_by_order = [0] * max_order
     reference_length = 0
@@ -203,6 +219,7 @@ def compute_bleu(reference_corpus, translation_corpus, max_order=4, smooth=False
         bp = 1.0
     elif ratio == 0.0:
         # An empty translation gets no credit, as in sacrebleu.
+        # 与 sacrebleu 保持一致：空翻译不计分。
         bp = 0.0
     else:
         bp = math.exp(1 - 1.0 / ratio)

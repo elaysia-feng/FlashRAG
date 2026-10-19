@@ -55,7 +55,9 @@ class Config:
     @staticmethod
     def _update_dict(old_dict: dict, new_dict: dict):
         # Update the original update method of the dictionary:
+        # 扩展字典原有的更新方式。
         # If there is the same key in `old_dict` and `new_dict`, and value is of type dict, update the key in dict
+        # 两个字典存在同名键且新值为字典时，先更新该键对应的内部字典。
 
         same_keys = []
         for key, value in new_dict.items():
@@ -93,6 +95,7 @@ class Config:
 
     def _check_final_config(self):
         # check split
+        # 检查数据划分配置。
         split = self.final_config["split"]
         if split is None:
             split = ["train", "dev", "test"]
@@ -149,20 +152,24 @@ class Config:
             return config
 
         # set dataset
+        # 设置数据集相关路径。
         dataset_name = self.final_config["dataset_name"]
         data_dir = self.final_config["data_dir"]
         self.final_config["dataset_path"] = os.path.join(data_dir, dataset_name)
 
         # set retrieval-related keys
+        # 设置检索相关配置项。
         model2path = self.final_config["model2path"]
         model2pooling = self.final_config["model2pooling"]
         method2index = self.final_config["method2index"]
         self.final_config = set_retrieval_keys(model2path, model2pooling, method2index, self.final_config)
         # set keys for multi retriever
+        # 设置多检索器需要的配置项。
         if "multi_retriever_setting" in self.final_config:
             multi_retriever_config = self.final_config["multi_retriever_setting"]
             retriever_config_list = multi_retriever_config.get("retriever_list", [])
             # set for reranker merge method
+            # 为使用重排的融合策略设置参数。
             assert multi_retriever_config['merge_method'] in ['concat', 'rrf', 'rerank', None]
             if multi_retriever_config['merge_method'] == 'rerank':
                 rerank_model_name = multi_retriever_config.get("rerank_model_name", None)
@@ -179,6 +186,7 @@ class Config:
                         multi_retriever_config["rerank_pooling_method"] = set_pooling_method(rerank_model_name, model2pooling)
             
             # set config for each retriever
+            # 设置每个子检索器的配置。
             for retriever_config in retriever_config_list:
                 if "instruction" not in retriever_config:
                     retriever_config["instruction"] = None
@@ -195,6 +203,7 @@ class Config:
                 retriever_config = set_retrieval_keys(model2path, model2pooling, method2index, retriever_config)
                 
                 # set other necessary keys as base setting
+                # 将其他必要配置补入基础设置。
                 keys = [
                     "retrieval_use_fp16",
                     "retrieval_query_max_length",
@@ -213,6 +222,7 @@ class Config:
                 retriever_config["use_retrieval_cache"] = False
         
         # set model path
+        # 设置模型路径。
         generator_model = self.final_config["generator_model"]
 
         if self.final_config.get("generator_model_path") is None:
@@ -226,6 +236,7 @@ class Config:
             self.final_config["instruction"] = None
 
         # set model path in metric setting
+        # 设置评估指标使用的模型路径。
         metric_setting = self.final_config["metric_setting"]
         metric_tokenizer_name = metric_setting.get("tokenizer_name", None)
         from flashrag.utils.constants import OPENAI_MODEL_DICT
@@ -249,6 +260,7 @@ class Config:
         )
         os.makedirs(self.final_config["save_dir"], exist_ok=True)
         # save config parameters
+        # 保存配置参数。
         config_save_path = os.path.join(self.final_config["save_dir"], "config.yaml")
         with open(config_save_path, "w") as f:
             yaml.dump(self.final_config, f, indent=4, sort_keys=False)

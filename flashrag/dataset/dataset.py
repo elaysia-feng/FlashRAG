@@ -11,6 +11,7 @@ class Item:
     Information related to this sample during training/inference will be stored in `self.output`.
     Each attribute of this class can be used like a dict key (also for key in `self.output`).
     """
+    # 单条样本；question 和 golden_answers 是输入，检索、提示词、预测等结果保存在 output。
 
     def __init__(self, item_dict: Dict[str, Any]) -> None:
         self.id: Optional[str] = item_dict.get("id", None)
@@ -23,6 +24,7 @@ class Item:
 
     def update_output(self, key: str, value: Any) -> None:
         """Update the output dict and keep a key in self.output can be used as an attribute."""
+        # 将阶段结果写入 output；受保护的输入字段不能通过此入口覆盖。
         if key in ["id", "question", "golden_answers", "output", "choices"]:
             raise AttributeError(f"{key} should not be changed")
         else:
@@ -30,6 +32,7 @@ class Item:
 
     def update_evaluation_score(self, metric_name: str, metric_score: float) -> None:
         """Update the evaluation score of this sample for a metric."""
+        # 把单项指标得分写入样本 output 的 metric_score。
         if "metric_score" not in self.output:
             self.output["metric_score"] = {}
         self.output["metric_score"][metric_name] = metric_score
@@ -59,12 +62,14 @@ class Item:
         """Convert all information within the data sample into a dict. Information generated
         during the inference will be saved into output field.
         """
+        # 将样本及其中间结果整理为可保存的字典。
         from flashrag.dataset.utils import convert_numpy, remove_images, clean_prompt_image
 
         
         output = remove_images(self.data)
 
         # clean base64 image
+        # 清理 Base64 图片内容。
         if 'prompt' in self.output:
             self.output['prompt'] = clean_prompt_image(self.output['prompt'])
             
@@ -76,6 +81,7 @@ class Item:
 
     def __str__(self) -> str:
         """Return a string representation of the item with its main attributes."""
+        # 返回便于查看的对象文本表示。
         return json.dumps(self.to_dict(), indent=4, ensure_ascii=False)
 
 
@@ -83,6 +89,7 @@ class Dataset:
     """A container class used to store the whole dataset. Inside the class, each data sample will be stored
     in `Item` class. The properties of the dataset represent the list of attributes corresponding to each item in the dataset.
     """
+    # 样本集合；批量读取属性时按样本顺序返回，流水线各阶段会写回同一批样本。
 
     def __init__(
         self,
@@ -117,8 +124,10 @@ class Dataset:
 
     def _load_data(self, dataset_name: str, dataset_path: str) -> List[Item]:
         """Load data from the provided dataset_path or directly download the file(TODO)."""
+        # 从本地问答文件加载样本并应用采样设置；文件缺失时抛出 FileNotFoundError。
         if not os.path.exists(dataset_path):
             # TODO: auto download: self._download(self.dataset_name, dataset_path)
+            # 待办：支持通过 _download 自动下载缺失的数据集。
             raise FileNotFoundError(f"Dataset file {dataset_path} not found.")
 
         data = []
@@ -149,6 +158,7 @@ class Dataset:
 
     def update_output(self, key: str, value_list: List[Any]) -> None:
         """Update the overall output field for each sample in the dataset."""
+        # 将阶段结果写入 output；受保护的输入字段不能通过此入口覆盖。
         assert len(self.data) == len(value_list)
         for item, value in zip(self.data, value_list):
             item.update_output(key, value)
@@ -171,15 +181,20 @@ class Dataset:
 
     def get_batch_data(self, attr_name: str, batch_size: int) -> Generator[List[Any], None, None]:
         """Get an attribute of dataset items in batch."""
+        # 按样本顺序分批产出某个属性，批次长度由 batch_size 限定。
         for i in range(0, len(self.data), batch_size):
             batch_items = self.data[i : i + batch_size]
             yield [getattr(item, attr_name) for item in batch_items]
 
     def __getattr__(self, attr_name: str) -> List[Any]:
         # Only reached for attributes that are not set on the dataset. Do not
+        # 仅当 Dataset 自身不存在该属性时才会进入这里。
         # map `data` itself or special methods to the items: while copy or
+        # 不要把 data 本身或特殊方法映射到样本属性。
         # pickle rebuild a dataset, `data` does not exist yet, and looking it
+        # 复制或反序列化重建 Dataset 时，data 可能尚未创建。
         # up here would recurse forever.
+        # 此时继续查找 data 会造成无限递归。
         if attr_name == "data" or (attr_name.startswith("__") and attr_name.endswith("__")):
             raise AttributeError(attr_name)
         return [item.__getattr__(attr_name) for item in self.data]
@@ -188,6 +203,7 @@ class Dataset:
         """For the attributes constructed later (not implemented using property),
         obtain a list of this attribute in the entire dataset.
         """
+        # 按原始顺序收集各样本的指定属性，包含推理期间新增的输出属性。
         return [getattr(item, attr_name) for item in self.data]
 
     def __getitem__(self, index: int) -> Item:
@@ -198,6 +214,7 @@ class Dataset:
 
     def save(self, save_path: str) -> None:
         """Save the dataset into the original format."""
+        # 按数据集原有结构保存样本与阶段结果。
 
         save_data = [item.to_dict() for item in self.data]
         with open(save_path, "w", encoding="utf-8") as f:
@@ -206,4 +223,5 @@ class Dataset:
 
     def __str__(self) -> str:
         """Return a string representation of the dataset with a summary of items."""
+        # 返回便于查看的对象文本表示。
         return f"Dataset '{self.dataset_name}' with {len(self)} items"

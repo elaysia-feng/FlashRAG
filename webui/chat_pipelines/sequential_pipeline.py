@@ -28,6 +28,7 @@ class SequentialPipeline_Chat(BaseChatPipeline, SequentialPipeline):
             input_prompt_flag = self.refiner.input_prompt_flag
             if "llmlingua" in self.refiner.name and input_prompt_flag:
                 # input prompt
+                # 输入是完整提示词。
                 input_prompts = [
                     self.prompt_template.get_string(question=q, retrieval_result=r)
                     for q, r in zip(dataset.question, dataset.retrieval_result)
@@ -37,6 +38,7 @@ class SequentialPipeline_Chat(BaseChatPipeline, SequentialPipeline):
                 yield from self.display_middle_result(input_prompts, 'Refining Prompts')
             else:
                 # input retrieval docs
+                # 输入是检索文档。
                 refine_results = self.refiner.batch_run(dataset)
                 dataset.update_output("refine_result", refine_results)
                 input_prompts = [
@@ -60,6 +62,7 @@ class SequentialPipeline_Chat(BaseChatPipeline, SequentialPipeline):
                 docs = item.retrieval_result
                 input_prompts.append([q + " " + doc for doc in docs])
         # delete used refiner to release memory
+        # 删除已经使用完的压缩器，以释放内存或显存资源。
         if self.refiner:
             del self.refiner
         pred_answer_list = self.generator.generate(input_prompts)
@@ -78,6 +81,7 @@ class NaivePipeline_Chat(BaseChatPipeline, SequentialPipeline):
         dataset = Dataset(config = self.config, data = [Item({"question": query})])
 
         # direct generation without RAG
+        # 不使用 RAG，直接生成答案。
         input_prompts = [self.prompt_template.get_string(question=q) for q in dataset.question]
         dataset.update_output("prompt", input_prompts)
 

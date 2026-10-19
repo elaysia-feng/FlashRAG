@@ -25,6 +25,7 @@ os.environ["RAYON_NUM_THREADS"] = cores
 
 class Index_Builder:
     r"""A tool class used to build an index used in retrieval."""
+    # 离线索引构建器；索引中的文档位置需要与读取的语料保持对应。
 
     def __init__(
             self,
@@ -76,6 +77,7 @@ class Index_Builder:
         self.nknn = nknn
 
         # judge if the retrieval model is clip
+        # 判断检索模型是否为 CLIP。
         self.is_clip = ("clip" in self.retrieval_method) or (self.model_path is not None and "clip" in self.model_path)
         if not self.is_clip:
             try:
@@ -89,9 +91,11 @@ class Index_Builder:
             print("Use clip model!")
 
         # config pooling method
+        # 配置向量池化方式。
         if pooling_method is None:
             try:
                 # read pooling method from 1_Pooling/config.json
+                # 从 1_Pooling/config.json 读取模型声明的池化方式。
                 pooling_config = json.load(open(os.path.join(self.model_path, "1_Pooling/config.json")))
                 for k, v in pooling_config.items():
                     if k.startswith("pooling_mode") and v == True:
@@ -102,12 +106,14 @@ class Index_Builder:
                             pooling_method = "cls"
                         else:
                             # raise warning: not implemented pooling method
+                            # 对尚未实现的池化方式发出警告。
                             warnings.warn(f"Pooling method {pooling_method} is not implemented.", UserWarning)
                             pooling_method = "mean"
                         break
             except:
                 print(f"Pooling method not found in {self.model_path}, use default pooling method (mean).")
                 # use default pooling method
+                # 使用默认池化方式。
                 pooling_method = "mean"
         else:
             if pooling_method not in ["mean", "cls", "pooler"]:
@@ -116,6 +122,7 @@ class Index_Builder:
 
         self.gpu_num = torch.cuda.device_count()
         # prepare save dir
+        # 准备索引保存目录。
         print(self.save_dir)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
@@ -132,6 +139,7 @@ class Index_Builder:
     @staticmethod
     def _check_dir(dir_path):
         r"""Check if the dir path exists and if there is content."""
+        # 检查目录是否存在，以及目录内是否已有内容。
 
         if os.path.isdir(dir_path):
             if len(os.listdir(dir_path)) > 0:
@@ -142,6 +150,7 @@ class Index_Builder:
 
     def build_index(self):
         r"""Constructing different indexes based on selective retrieval method."""
+        # 根据 retrieval_method 选择 BM25、SPLADE/Seismic 或稠密索引。
         if self.retrieval_method == "bm25":
             if self.bm25_backend == "pyserini":
                 self.build_bm25_index_pyserini()
@@ -156,6 +165,7 @@ class Index_Builder:
 
     def build_seismic_index(self):
         """Build Seismic index after saving documents in required JSONL format using batch processing."""
+        # 将稀疏表示整理为 Seismic 输入，再构建稀疏检索索引。
 
         r"""Full Command:
         # Use "splade" (sparse embedding neural model) as retrieval method to trigger sysmic index costruction.
@@ -181,25 +191,31 @@ class Index_Builder:
             print(
                 f'Pooling method: {self.pooling_method.upper()} not supported on sparse neural retrieval models. fallback to: MAX.')
         # Load document encoder model (only splade i currently implemented at the moment)
+        # 加载文档编码模型；原注释说明当前分支只实现了 SPLADE。
         tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         model = AutoModelForMaskedLM.from_pretrained(self.model_path)
         # Use half precision
+        # 使用半精度。
         if self.use_fp16:
             model = model.half()
         # Use more devices if available
+        # 存在更多可用设备时使用多设备。
         if torch.cuda.device_count() > 1:
             print(f"Using {torch.cuda.device_count()} GPUs")
             model = torch.nn.DataParallel(model)
 
         # Load to cuda
+        # 将模型加载到 CUDA。
         model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
         model.eval()
 
         # Create file for embedded corpus
+        # 创建保存语料嵌入的文件。
         corpus_name = os.path.splitext(os.path.basename(self.corpus_path))[0]
         output_path = os.path.join(self.save_dir, f"{corpus_name}_{self.retrieval_method}_embedded.jsonl")
 
         # Init vars
+        # 初始化状态变量。
         total_docs = len(self.corpus)
         processed_docs = 0
         start_time = time.time()
@@ -234,6 +250,7 @@ class Index_Builder:
 
         with open(output_path, 'w') as f_out, ThreadPoolExecutor(max_workers=1) as pool:
             # create progress bar
+            # 创建进度条。
             progress_bar = tqdm(
                 desc="Processing Documents",
                 total=total_docs,
@@ -244,15 +261,18 @@ class Index_Builder:
             batch = []
             for doc in self.corpus:
                 # Load batch
+                # 加载一个批次。
                 batch.append(doc)
 
                 # On batch ready process batch
+                # 批次装满后立即处理。
                 if len(batch) >= self.batch_size:
                     self._process_batch(batch, f_out, model, tokenizer, pool)
                     processed_docs += len(batch)
                     batch = []
 
                     # Progress updates
+                    # 更新处理进度。
                     current_time = time.time()
                     if processed_docs % 100 == 0 or (current_time - last_update) > 5.0:
                         elapsed = current_time - start_time
@@ -267,6 +287,7 @@ class Index_Builder:
                         last_update = current_time
 
             # Handle final leftover batch
+            # 处理最后不足一整批的剩余数据。
             if batch:
                 self._process_batch(batch, f_out, model, tokenizer, pool)
                 progress_bar.update(len(batch))
@@ -286,6 +307,7 @@ class Index_Builder:
             )
         else:
             # Create index on embedded corpus file and save it
+            # 基于已向量化的语料文件构建索引并保存。
             index = SeismicIndex.build(
                 output_path,
                 n_postings=self.n_postings,
@@ -301,10 +323,12 @@ class Index_Builder:
 
     def _process_batch(self, batch, f_out, model, tokenizer, pool):
         # Get embeddings
+        # 取得嵌入表示。
         texts = [doc['contents'] for doc in batch]
         vectors = self._get_sparse_embedding(texts, model, tokenizer)
 
         # create json for the batch
+        # 为当前批次构造 JSON 数据。
         def save(docs, embs):
             for doc, vector in zip(docs, embs):
                 if 'vector' not in doc:
@@ -318,6 +342,7 @@ class Index_Builder:
 
     def _get_sparse_embedding(self, texts: List[str], model, tokenizer) -> List[Dict[str, float]]:
         """Generate sparse embeddings for a batch of texts."""
+        # 通过稀疏模型计算文本的词项权重。
         inputs = tokenizer(
             texts,
             return_tensors="pt",
@@ -329,21 +354,26 @@ class Index_Builder:
 
         with torch.no_grad():
             logits = model(**inputs).logits  # [batch_size, seq_len, vocab_size]
+            # 张量形状为批次数量×序列长度×词表大小。
             attention_mask = inputs["attention_mask"].unsqueeze(-1)
 
             scores = torch.log1p(torch.relu(logits)) * attention_mask
 
             v_repr = torch.max(scores, dim=1)[0]  # [batch_size, vocab_size]
+            # 张量形状为批次数量×词表大小。
 
             # Move to CPU (it seems much faster)
+            # 移到 CPU 处理；原实现注释指出这种方式似乎更快。
             v_repr = v_repr.cpu()
             nonzero_mask = v_repr > 1e-4
 
             # Get sparse values and indices in batch
+            # 批量取得稀疏表示的非零权重与位置。
             batch_indices, token_indices = torch.nonzero(nonzero_mask, as_tuple=True)
             token_scores = v_repr[batch_indices, token_indices]
 
             # Convert once all token IDs to strings (batched)
+            # 一次性批量把全部 token 标识转换为字符串。
             unique_token_ids = torch.unique(token_indices)
             token_id_to_token = {
                 idx.item(): tok for idx, tok in zip(
@@ -352,12 +382,14 @@ class Index_Builder:
             }
 
             # Build final embeddings
+            # 构造最终嵌入表示。
             from collections import defaultdict
             embeddings = defaultdict(dict)
             for b_idx, t_idx, score in zip(batch_indices, token_indices, token_scores):
                 embeddings[b_idx.item()][token_id_to_token[t_idx.item()]] = round(score.item(), 4)
 
             # Convert to list for each document
+            # 为每篇文档分别转为列表。
             return [embeddings[i] for i in range(len(texts))]
 
     @staticmethod
@@ -369,15 +401,20 @@ class Index_Builder:
             token_weight_dict[token] = round(weight, 4)
 
         # Sort the dictionary by weights
+        # 按权重排序字典项。
         token_weight_dict = dict(sorted(token_weight_dict.items(), key=lambda item: item[1], reverse=True))
         return token_weight_dict
 
     @staticmethod
     def clean_text(self, text: str) -> str:
         """Preprocess the text by removing special characters that seems to cause some problems in seismic index build resulting in a parse error."""
+        # 清理送入索引构建流程的文本。
         text = re.sub(r'<[^>]+>', '', text)  # Remove HTML tags
+        # 移除 HTML 标签。
         text = re.sub(r'\s+', ' ', text)  # Normalize multiple spaces
+        # 合并连续空格。
         text = text.strip()  # Remove leading/trailing whitespaces
+        # 删除首尾空白。
         return text
 
     def build_bm25_index_pyserini(self):
@@ -385,8 +422,10 @@ class Index_Builder:
 
         Reference: https://github.com/castorini/pyserini/blob/master/docs/usage-index.md#building-a-bm25-index-direct-java-implementation
         """
+        # 将语料转换为 Pyserini 需要的格式并调用其索引构建工具。
 
         # to use pyserini pipeline, we first need to place jsonl file in the folder
+        # 使用 Pyserini 流程前，先将 JSONL 语料放到指定目录中。
         self.save_dir = os.path.join(self.save_dir, "bm25")
         os.makedirs(self.save_dir, exist_ok=True)
         temp_dir = self.save_dir + "/temp"
@@ -396,6 +435,7 @@ class Index_Builder:
         if self.corpus_path.endswith(".jsonl"):
             shutil.copyfile(self.corpus_path, temp_file_path)
             # check if the language is chinese
+            # 判断语料语言是否为中文。
             with open(self.corpus_path, 'r', encoding='utf-8') as file:
                 first_item = json.loads(file.readline())
                 contents = first_item.get("contents", "")  # 获取 contents 字段
@@ -439,6 +479,7 @@ class Index_Builder:
 
     def build_bm25_index_bm25s(self):
         """Building BM25 index based on bm25s library."""
+        # 为语料分词并构建 bm25s 索引。
 
         import bm25s
         import Stemmer
@@ -448,6 +489,7 @@ class Index_Builder:
 
         corpus = load_corpus(self.corpus_path)
         # TODO: BM25s not support chinese well
+        # 待办：改善 BM25s 对中文的支持。
         is_zh = judge_zh(corpus[0]['contents'])
         if is_zh:
             tokenizer = bm25s.tokenization.Tokenizer(stopwords='zh')
@@ -473,6 +515,7 @@ class Index_Builder:
         memmap = np.memmap(self.embedding_save_path, shape=all_embeddings.shape, mode="w+", dtype=all_embeddings.dtype)
         length = all_embeddings.shape[0]
         # add in batch
+        # 批量添加文档。
         save_batch_size = 10000
         if length > save_batch_size:
             for i in tqdm(range(0, length, save_batch_size), leave=False, desc="Saving Embeddings"):
@@ -491,6 +534,7 @@ class Index_Builder:
             return self.encoder.encode(encode_data, batch_size=self.batch_size, is_query=False)
 
         # Stream each batch straight into the on-disk memmap instead of buffering the whole corpus in RAM.
+        # 每批结果直接写入磁盘 memmap，避免在内存中缓存整个语料的向量。
         corpus_size = len(encode_data)
         all_embeddings = np.memmap(
             self.embedding_save_path, shape=(corpus_size, hidden_size), mode="w+", dtype=np.float32
@@ -524,6 +568,7 @@ class Index_Builder:
         """Obtain the representation of documents based on the embedding model(BERT-based) and
         construct a faiss index.
         """
+        # 准备语料向量并构建 FAISS 索引，按配置选择索引类型和保存方式。
 
         if self.is_clip:
             from flashrag.retriever.encoder import ClipEncoder
@@ -570,6 +615,7 @@ class Index_Builder:
             del self.corpus
 
         # build index
+        # 构建索引。
         if self.is_clip:
             if self.index_modal == "all":
                 assert all_embeddings.shape[0] % 2 == 0
@@ -607,6 +653,7 @@ class Index_Builder:
             index_save_path,
     ):
         # build index
+        # 构建索引。
         print("Creating index")
         dim = all_embeddings.shape[-1]
         faiss_index = faiss.index_factory(dim, faiss_type, faiss.METRIC_INNER_PRODUCT)
@@ -635,6 +682,7 @@ def main():
     parser = argparse.ArgumentParser(description="Creating index.")
 
     # Basic parameters
+    # 基础参数。
     parser.add_argument("--retrieval_method", type=str)
     parser.add_argument("--model_path", type=str, default=None)
     parser.add_argument("--corpus_path", type=str)
@@ -642,6 +690,7 @@ def main():
     parser.add_argument("--save_dir", default="indexes/", type=str)
 
     # Parameters for building dense index
+    # 稠密索引构建参数。
     parser.add_argument("--max_length", type=int, default=180)
     parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--use_fp16", default=False, action="store_true")
@@ -655,9 +704,11 @@ def main():
     parser.add_argument("--bm25_backend", default="pyserini", choices=["bm25s", "pyserini"])
 
     # Parameters for build multi-modal retriever index
+    # 多模态检索索引构建参数。
     parser.add_argument("--index_modal", type=str, default="all", choices=["text", "image", "all"])
 
     # New arguments for seismic index
+    # Seismic 索引新增参数。
     parser.add_argument("--n_postings", type=int, default=1000)
     parser.add_argument("--centroid_fraction", type=float, default=0.2)
     parser.add_argument("--min_cluster_size", type=int, default=2)

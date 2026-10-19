@@ -59,6 +59,7 @@ def create_method() -> Dict[str, "Component"]:
                 with gr.Row():
                     recomp_refiner_path = gr.Textbox(interactive=True)
                     # for abstractive
+                    # 摘要式压缩使用的参数。
                     recomp_max_input_length = gr.Slider(
                         minimum=1, maximum=4096, step=1, value=1024, interactive=True
                     )
@@ -67,6 +68,7 @@ def create_method() -> Dict[str, "Component"]:
                     )
                 with gr.Row():
                     # for extractive
+                    # 抽取式压缩使用的参数。
                     recomp_topk = gr.Slider(
                         minimum=1, maximum=500, step=1, value=5, interactive=True
                     )

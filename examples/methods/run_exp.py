@@ -12,6 +12,7 @@ def naive(args):
     from flashrag.pipeline import SequentialPipeline
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -26,6 +27,7 @@ def zero_shot(args):
     config_dict = {"save_note": save_note, "gpu_id": args.gpu_id, "dataset_name": args.dataset_name, "split": args.split}
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -49,9 +51,12 @@ def aar(args):
         in ACL 2023.
         Official repo: https://github.com/OpenMatch/Augmentation-Adapted-Retriever
     """
+    # 运行 AAR 方法的实验；原文保留对应参考资料和参数说明。
     # two types of checkpoint: ance / contriever
+    # 支持 ANCE 和 Contriever 两种检查点。
     # retrieval_method = "AAR-contriever"  # AAR-ANCE
     # index path of this retriever
+    # 当前检索器对应的索引路径。
     retrieval_method = args.method_name
     if "contriever" in retrieval_method:
         index_path = "aar-contriever_Flat.index"
@@ -73,6 +78,7 @@ def aar(args):
     }
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -93,6 +99,7 @@ def llmlingua(args):
         in ICLR MEFoMo 2024.
         Official repo: https://github.com/microsoft/LLMLingua
     """
+    # 运行 LLMLingua 方法的实验；原文保留对应参考资料和参数说明。
     refiner_name = "longllmlingua"  #
     refiner_model_path = "model/llama-2-7b-hf"
 
@@ -116,6 +123,7 @@ def llmlingua(args):
     }
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -133,8 +141,11 @@ def recomp(args):
         in ICLR 2024.
         Official repo: https://github.com/carriex/recomp
     """
+    # 运行 RECOMP 方法的实验；原文保留对应参考资料和参数说明。
     # ###### Specified parameters ######
+    # 指定参数。
     refiner_name = "recomp-abstractive"  # recomp-extractive
+    # 使用 RECOMP 抽取式压缩。
     model_dict = {
         "nq": "model/recomp_nq_abs",
         "triviaqa": "model/recomp_tqa_abs",
@@ -145,6 +156,7 @@ def recomp(args):
     refiner_max_input_length = 1024
     refiner_max_output_length = 512
     # parameters for extractive compress
+    # 抽取式压缩所需参数。
     refiner_topk = 5
     refiner_pooling_method = "mean"
     refiner_encode_max_length = 256
@@ -164,6 +176,7 @@ def recomp(args):
     }
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -190,6 +203,7 @@ def sc(args):
             pip install en_core_web_sm-3.6.0.tar.gz
             ```
     """
+    # 运行 Selective Context 方法的实验；原文保留对应参考资料和参数说明。
     refiner_name = "selective-context"
     refiner_model_path = "model/gpt2"
 
@@ -204,6 +218,7 @@ def sc(args):
     }
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -221,6 +236,7 @@ def retrobust(args):
         in ICLR 2024.
         Official repo: https://github.com/oriyor/ret-robust
     """
+    # 运行 RetRobust 方法的实验；原文保留对应参考资料和参数说明。
     model_dict = {
         "nq": "model/llama-2-13b-peft-nq-retrobust",
         "2wiki": "model/llama-2-13b-peft-2wikihop-retrobust",
@@ -251,6 +267,7 @@ def retrobust(args):
 
     pipeline = SelfAskPipeline(config, max_iter=5, single_hop=False)
     # use specify prediction parse function
+    # 使用指定的预测结果解析函数。
     result = pipeline.run(test_data, pred_process_fun=selfask_pred_parse)
 
 
@@ -261,6 +278,7 @@ def sure(args):
         in ICLR 2024
         Official repo: https://github.com/bbuing9/ICLR24_SuRe
     """
+    # 运行 SuRe 方法的实验；原文保留对应参考资料和参数说明。
     config_dict = {"save_note": "SuRe", "gpu_id": args.gpu_id, "dataset_name": args.dataset_name, "split": args.split}
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
@@ -278,10 +296,12 @@ def replug(args):
     Reference:
         Weijia Shi et al. "REPLUG: Retrieval-Augmented Black-Box Language Models".
     """
+    # 运行 REPLUG 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "replug"
     config_dict = {"save_note": save_note, "gpu_id": args.gpu_id, "dataset_name": args.dataset_name, "split": args.split}
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -314,6 +334,7 @@ def skr(args):
             ]
 
     """
+    # 运行 SKR 方法的实验；原文保留对应参考资料和参数说明。
     judger_name = "skr"
     model_path = "model/sup-simcse-bert-base-uncased"
     training_data_path = "./sample_data/skr_training.json"
@@ -334,6 +355,7 @@ def skr(args):
     }
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -351,6 +373,7 @@ def selfrag(args):
         in ICLR 2024.
         Official repo: https://github.com/AkariAsai/self-rag
     """
+    # 运行 Self-RAG 方法的实验；原文保留对应参考资料和参数说明。
     config_dict = {
         "generator_model": "selfrag-llama2-7B",
         "generator_model_path": "model/selfrag_llama2_7b",
@@ -398,6 +421,7 @@ def flare(args):
         Official repo: https://github.com/bbuing9/ICLR24_SuRe
 
     """
+    # 运行 FLARE 方法的实验；原文保留对应参考资料和参数说明。
     config_dict = {"save_note": "flare", "gpu_id": args.gpu_id, "dataset_name": args.dataset_name, "split": args.split}
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
@@ -419,6 +443,7 @@ def iterretgen(args):
         Zhangyin Feng et al. "Retrieval-Generation Synergy Augmented Large Language Models"
         in EMNLP Findings 2023.
     """
+    # 运行 IterRetGen 方法的实验；原文保留对应参考资料和参数说明。
     iter_num = 3
     config_dict = {
         "save_note": "iter-retgen",
@@ -427,6 +452,7 @@ def iterretgen(args):
         "split": args.split,
     }
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -443,12 +469,14 @@ def ircot(args):
         Harsh Trivedi et al. "Interleaving Retrieval with Chain-of-Thought Reasoning for Knowledge-Intensive Multi-Step Questions"
         in ACL 2023
     """
+    # 运行 IRCOT 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "ircot"
     config_dict = {"save_note": save_note, "gpu_id": args.gpu_id, "dataset_name": args.dataset_name, "split": args.split}
 
     from flashrag.pipeline import IRCOTPipeline
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -463,18 +491,24 @@ def trace(args):
     Reference:
         Jinyuan Fang et al. "TRACE the Evidence: Constructing Knowledge-Grounded Reasoning Chains for Retrieval-Augmented Generation"
     """
+    # 运行 Trace 方法的实验；原文保留对应参考资料和参数说明。
 
     save_note = "trace"
     trace_config = {
         "num_examplars": 3,
         "max_chain_length": 4,
         "topk_triple_select": 5,  # num of candidate triples
+        # 候选三元组的数量。
         "num_choices": 20,
         "min_triple_prob": 1e-4,
         "num_beams": 5,  # number of selected prob at each step of constructing chain
+        # 构建推理链时每一步保留的概率候选数量。
         "num_chains": 20,  # number of generated chains
+        # 生成的推理链数量。
         "n_context": 5,  # number of used chains in generation
+        # 回答生成阶段使用的推理链数量。
         "context_type": "triples",  # triples/triple-doc
+        # 上下文形式：仅三元组，或三元组及其来源文档。
     }
     config_dict = {
         "save_note": save_note,
@@ -483,10 +517,12 @@ def trace(args):
         "refiner_name": "kg-trace",
         "trace_config": trace_config,
         "framework": "hf",  # Trance only supports using Huggingface Transformers since it needs logits of outputs
+        # 此处 Trace 需要读取输出 logits，因此只支持 Hugging Face Transformers 后端。
         "split": args.split,
     }
 
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -502,6 +538,7 @@ def spring(args):
     Reference:
         Yutao Zhu et al. "One Token Can Help! Learning Scalable and Pluggable Virtual Tokens for Retrieval-Augmented Large Language Models"
     """
+    # 运行 SPRING 方法的实验；原文保留对应参考资料和参数说明。
 
     save_note = "spring"
     config_dict = {
@@ -516,6 +553,7 @@ def spring(args):
     test_data = all_split[args.split]
 
     # download token embedding from: https://huggingface.co/yutaozhu94/SPRING
+    # 从指定的 Hugging Face 地址下载 token 嵌入。
     token_embedding_path = "llama2.7b.chat.added_token_embeddings.pt"
 
     from flashrag.prompt import PromptTemplate
@@ -523,6 +561,7 @@ def spring(args):
     from flashrag.utils import get_generator, get_retriever
 
     # prepare prompt and generator for Spring method
+    # 为 SPRING 方法准备提示词和生成器。
     system_prompt = (
         "Answer the question based on the given document."
         "Only give me the answer and do not output any other words."
@@ -553,6 +592,7 @@ def adaptive(args):
         "split": args.split,
     }
     # preparation
+    # 准备阶段。
     config = Config("my_config.yaml", config_dict)
     all_split = get_dataset(config)
     test_data = all_split[args.split]
@@ -566,6 +606,7 @@ def rqrag(args):
     """
     Function to run the RQRAGPipeline.
     """
+    # 运行 RQRAG 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "rqrag"
     max_depth = 3
     config_dict = {
@@ -594,6 +635,7 @@ def r1searcher(args):
     """
     Function to run the R1-Searcher.
     """
+    # 运行 R1-Searcher 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "r1-searcher"
     config_dict = {
         "save_note": save_note,
@@ -620,6 +662,7 @@ def searchr1(args):
     """
     Function to run the search-r1.
     """
+    # 运行 Search-R1 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "search-r1"
     config_dict = {
         "save_note": save_note,
@@ -644,6 +687,7 @@ def autorefine(args):
     """
     Function to run the AutoRefine.
     """
+    # 运行 AutoRefine 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "autorefine"
     config_dict = {
         "save_note": save_note,
@@ -669,6 +713,7 @@ def o2searcher(args):
     """
     Function to run the O2searcher.
     """
+    # 运行 O2Searcher 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "O2searcher"
     config_dict = {
         "save_note": save_note,
@@ -694,6 +739,7 @@ def rearag(args):
     """
     Function to run the rearag.
     """
+    # 运行 ReaRAG 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "rearag"
     config_dict = {
         "save_note": save_note,
@@ -719,6 +765,7 @@ def corag(args):
     """
     Function to run the CoRAG.
     """
+    # 运行 CoRAG 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "corag"
     task_desc = 'Given a search query, retrieve relevant documents that can help answer the query'
     if args.dataset_name in ['hotpotqa', 'musique', '2wikimultihopqa', 'bamboogle']:
@@ -750,6 +797,7 @@ def simpledeepsearcher(args):
     """
     Function to run the SimpleDeepSearcher.
     """
+    # 运行 SimpleDeepSearcher 方法的实验；原文保留对应参考资料和参数说明。
     save_note = "simpledeepsearcher"
     config_dict = {
         "save_note": save_note,

@@ -91,6 +91,7 @@ class ReasoningPipeline(BasicPipeline):
         dataset.update_output('retrieved_times', [0] * len(prompts))
 
         # Logic of reasoning
+        # 推理过程的主逻辑。
         for current_step_idx in range(self.max_retrieval_num + 1):
             exist_items = [item for item in dataset if item.finish_flag == False]
             exist_prompts = [item.prompt for item in exist_items]
@@ -110,8 +111,10 @@ class ReasoningPipeline(BasicPipeline):
 
             step_outputs = self.generator.generate(exist_prompts, stop=self.stop_tokens)
             step_query_list = [] # store generated queries for retrieval
+            # 保存模型生成的检索查询。
 
             # parse each sample's step output
+            # 逐条解析样本本轮的模型输出。
             for item, step_output in zip(exist_items, step_outputs):
                 item.prompt = item.prompt + step_output.strip()
                 if self.end_of_answer_token in step_output and (step_output.endswith(self.end_of_answer_token) or step_output.endswith("<|endoftext|>")):
@@ -134,6 +137,7 @@ class ReasoningPipeline(BasicPipeline):
                     item.finish_reason = 'Normal finish without answer pattern'
                 
             # do retrieval and add retrieved docs to prompt
+            # 执行检索，并把召回文档追加到提示词。
             if len(step_query_list) > 0:
                 retrieved_docs = self.retriever.batch_search([it['query'] for it in step_query_list])
                 for it, item_retrieved_docs in zip(step_query_list, retrieved_docs):
@@ -232,8 +236,10 @@ class SimpleDeepSearcherPipeline(ReasoningPipeline):
 
             step_outputs = self.generator.generate(exist_prompts, stop=self.stop_tokens)
             step_query_list = [] # store generated queries for retrieval
+            # 保存模型生成的检索查询。
 
             # parse each sample's step output
+            # 逐条解析样本本轮的模型输出。
             for item, step_output in zip(exist_items, step_outputs):
                 item.prompt = item.prompt + step_output.strip()
                 if "\\boxed" in step_output:
@@ -409,6 +415,7 @@ class O2SearcherPipeline(ReasoningPipeline):
         dataset.update_output('retrieved_times', [0] * len(prompts))
 
         # Logic of reasoning
+        # 推理过程的主逻辑。
         for current_step_idx in range(self.max_retrieval_num + 1):
             exist_items = [item for item in dataset if item.finish_flag == False]
             exist_prompts = [item.prompt for item in exist_items]
@@ -428,8 +435,10 @@ class O2SearcherPipeline(ReasoningPipeline):
 
             step_outputs = self.generator.generate(exist_prompts, stop=self.stop_tokens)
             step_query_list = [] # store generated queries for retrieval
+            # 保存模型生成的检索查询。
 
             # parse each sample's step output
+            # 逐条解析样本本轮的模型输出。
             for item, step_output in zip(exist_items, step_outputs):
                 item.prompt = item.prompt + step_output.strip()
                 if self.end_of_answer_token in step_output and ((self.end_of_answer_token in step_output) or step_output.endswith("<|endoftext|>")):
@@ -460,6 +469,7 @@ class O2SearcherPipeline(ReasoningPipeline):
                     # item.finish_reason = 'Normal finish without answer pattern'
                 
             # do retrieval and add retrieved docs to prompt
+            # 执行检索，并把召回文档追加到提示词。
             if len(step_query_list) > 0:
                 # print(dataset.question)
                 _retrieved_docs = self.retriever.batch_search(sum([it['queries'] for it in step_query_list],[]))

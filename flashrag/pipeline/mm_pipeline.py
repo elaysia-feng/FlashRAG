@@ -5,6 +5,7 @@ class BasicMultiModalPipeline:
     """Base object of all multimodal pipelines. A pipeline includes the overall process of RAG.
     If you want to implement a pipeline, you should inherit this class.
     """
+    # 多模态流水线基类，衔接图文输入与公共评估接口。
 
     def __init__(self, config, prompt_template=None):
         from flashrag.prompt import MMPromptTemplate
@@ -18,16 +19,19 @@ class BasicMultiModalPipeline:
 
     def run(self, dataset, pred_process_fun=None):
         """The overall inference process of a RAG framework."""
+        # 执行当前流水线的问答推理流程。
         pass
 
     def evaluate(self, dataset, do_eval=True, pred_process_func=None):
         """The evaluation process after finishing overall generation"""
+        # 在生成完成后统一计算评估指标并整理结果。
 
         if pred_process_func is not None:
             dataset = pred_process_func(dataset)
 
         if do_eval:
             # evaluate & save result
+            # 评估并保存结果。
             eval_result = self.evaluator.evaluate(dataset)
             print(eval_result)
 
@@ -66,6 +70,7 @@ class MMSequentialPipeline(BasicMultiModalPipeline):
         image_query_list = dataset.image
 
         # perform retrieval
+        # 执行检索。
         retrieval_result = []
         for modal in perform_modality_dict.get('text', []):
             retrieval_result.append(

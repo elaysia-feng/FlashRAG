@@ -19,6 +19,7 @@ class ConditionalPipeline_Chat(BaseChatPipeline, ConditionalPipeline):
         inference stage:
             query -> judger -> sequential pipeline or naive generate
         """
+        # 推理顺序：问题先经判别器，再选择检索流水线或直接生成。
         BaseChatPipeline.__init__(self, config)
         self.config = config
         self.retriever = retriever
@@ -47,9 +48,11 @@ class ConditionalPipeline_Chat(BaseChatPipeline, ConditionalPipeline):
 
         if judge_result:
             # use retrieval
+            # 使用检索分支。
             yield from self.sequential_pipeline.chat(query)
         else:
             # use zero-shot
+            # 使用零样本直接生成分支。
             yield from self.zero_shot_pipeline.chat(query)
 
 
@@ -68,6 +71,7 @@ class AdaptivePipeline_Chat(BaseChatPipeline, AdaptivePipeline):
         self.retriever = retriever
 
         # Load three pipeline for three types of query: naive/single-hop/multi-hop
+        # 为无检索、单跳和多跳问题分别加载三种流水线。
         norag_templete = PromptTemplate(
             config=config,
             system_prompt="Answer the question based on your own knowledge. Only give me the answer and do not output any other words.",

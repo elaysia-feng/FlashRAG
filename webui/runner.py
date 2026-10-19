@@ -40,6 +40,7 @@ class Runner:
 
         retriever_settring = dict(
             # Retriever Setting
+            # 检索器设置。
             instruction=get("retrieve.instruction"),
             retrieval_topk=int(get("retrieve.retrieval_topk")),
             retrieval_batch_size=int(get("retrieve.retrieval_batch_size")),
@@ -55,6 +56,7 @@ class Runner:
 
         reranker_setting = dict(
             # Reranker Setting
+            # 重排器设置。
             use_reranker=bool(get("rerank.use_rerank")),
             rerank_model_name=get("rerank.rerank_model_name"),
             rerank_model_path=get("rerank.rerank_model_path"),
@@ -66,6 +68,7 @@ class Runner:
 
         generator_setting = dict(
             # Generator Setting
+            # 生成器设置。
             generator_max_input_len=int(get("generate.generator_max_input_len")),
             generator_batch_size=int(get("generate.generator_batch_size")),
             gpu_memory_utilization=float(get("generate.gpu_memory_utilization")),
@@ -202,6 +205,7 @@ class Runner:
         args["generation_params"] = generation_params
 
         # set default setting
+        # 设置默认参数。
         for key in [
             "index_path",
             "corpus_path",
@@ -242,6 +246,7 @@ class Runner:
         args = dict()
 
         # evaluate configs
+        # 评估配置。
         dataset_name = get("evaluate.dataset_name")
         data_dir = get("evaluate.data_dir")
         evaluate_setting = dict(
@@ -281,6 +286,7 @@ class Runner:
 
     def get_data_subfolders(self, folder_path: str):
         """Used in evaluate module to update the dataset_name dropdown."""
+        # 列出数据根目录中的数据集子目录。
 
         if folder_path is not None and os.path.exists(folder_path) and os.path.isdir(folder_path):
             subfolders = [f.name for f in os.scandir(folder_path) if f.is_dir()]
@@ -293,6 +299,7 @@ class Runner:
 
     def get_dataset_split(self, data_dir: str, dataset_name: str):
         """Get the dataset split"""
+        # 检查数据集目录下可用的划分文件，供页面选择。
         if not (os.path.exists(data_dir) and os.path.isdir(data_dir)):
             return gr.update(choices=[], value=None)
 
@@ -315,6 +322,7 @@ class Runner:
 
     def get_config_files(self):
         """Used in basic module to get the saved config files."""
+        # 列出 WebUI 配置目录中可加载的配置文件。
         current_path = os.getcwd()
         target_folder = "webui_configs"
         folder_path = os.path.join(current_path, target_folder)
@@ -335,6 +343,7 @@ class Runner:
 
     def save_configs(self, data):
         """Used in preview modulde to save the configs and write them to a file."""
+        # 将当前页面配置写入 WebUI 配置目录。
         args = self._parse_pipeline_args(data)
         args.update(self._parse_evaluate_args(data))
 
@@ -355,6 +364,7 @@ class Runner:
 
     def update_config_file_list(self):
         """Used in preview module to update the config_file dropdown."""
+        # 更新配置预览模块中的配置文件下拉选项。
         files = self.get_config_files()
 
         return gr.update(choices=files, value=files[0])
@@ -473,11 +483,13 @@ class Runner:
         progress(0, desc="Loading config...")
 
         # Load config
+        # 加载配置。
         args = self._parse_pipeline_args(data)
         args["disable_save"] = True
         config = Config(config_dict=args)
 
         # Load pipeline
+        # 加载流水线。
         self._prepare_pipeline(config, progress)
 
         return self.manager.get_elem_by_id("chat.chatbot")
@@ -496,6 +508,7 @@ class Runner:
             sys.stderr = TeeStream(queue, original_stderr)
 
             # Load config
+            # 加载配置。
             args = self._parse_pipeline_args(data)
             args.update(self._parse_evaluate_args(data))
             args["split"] = [args["dataset_split"]]
@@ -507,15 +520,18 @@ class Runner:
             print(json.dumps(args, indent=4, ensure_ascii=False))
 
             # Load data
+            # 加载数据。
             dataset = get_dataset(config)[args["dataset_split"]]
             print("Dataset info:")
             print(dataset)
 
             # Load pipeline
+            # 加载流水线。
             self._prepare_pipeline(config, progress)
             self.pipeline.evaluator = Evaluator(config)
 
             # Run evaluation process
+            # 执行评估流程。
             result = self.pipeline.run(dataset)
 
             sys.stdout = original_stdout

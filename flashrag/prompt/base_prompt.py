@@ -53,6 +53,7 @@ class PromptTemplate:
 
     def _check_placeholder(self):
         # check placeholder in prompt
+        # 检查提示词中的占位符。
         for holder in self.placeholders:
             flag = False
             for prompt in [self.system_prompt, self.user_prompt]:
@@ -178,6 +179,7 @@ class PromptTemplate:
         """
         Select the maximum number of examplars that can be placed in the prompt
         """
+        # 逐步减少少样本示例，选择能放入 token 长度预算的提示词。
 
         final_examplars = None
         num = len(examplars)

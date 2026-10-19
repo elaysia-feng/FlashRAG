@@ -20,6 +20,7 @@ from flashrag.generator.utils import convert_image_to_base64, process_image, res
 
 class BaseMultiModalGenerator:
     """`BaseMultiModalGenerator` is a base object of Generator model."""
+    # 定义图文生成器的公共配置和接口。
 
     def __init__(self, config):
         self.model_name = config["generator_model"]
@@ -53,6 +54,7 @@ class BaseMultiModalGenerator:
         
         The content of each dict can be a str(pure text as input) or list(for multimodal input).
         """
+        # 按当前后端处理输入并生成输出，返回值形式以对应实现为准。
         
         pass
 
@@ -92,6 +94,7 @@ class Qwen2VLInferenceEngine(BaseInferenceEngine):
     @torch.inference_mode(mode=True)
     def generate(self, input_list, **params):
         # convert image to base64
+        # 将图片转换为 Base64。
         for messages in input_list:
             for message in messages:
                 if isinstance(message['content'], list):
@@ -133,12 +136,14 @@ class InternVL2InferenceEngine(BaseInferenceEngine):
 
     def split_model(self):
         # get model name
+        # 获取模型名称。
         with open(os.path.join(self.model_path, 'config.json')) as f:
             config = json.load(f)
         num_layers = config['llm_config']['num_hidden_layers']
         device_map = {}
         world_size = torch.cuda.device_count()
         # Since the first GPU will be used for ViT, treat it as half a GPU.
+        # 第一张 GPU 还承担视觉编码器 ViT，因此只按半张卡分配语言模型层。
         num_layers_per_gpu = math.ceil(num_layers / (world_size - 0.5))
         num_layers_per_gpu = [num_layers_per_gpu] * world_size
         num_layers_per_gpu[0] = math.ceil(num_layers_per_gpu[0] * 0.5)
@@ -192,21 +197,25 @@ class InternVL2InferenceEngine(BaseInferenceEngine):
         aspect_ratio = orig_width / orig_height
 
         # calculate the existing image aspect ratio
+        # 计算原图的宽高比。
         target_ratios = set(
             (i, j) for n in range(min_num, max_num + 1) for i in range(1, n + 1) for j in range(1, n + 1) if
             i * j <= max_num and i * j >= min_num)
         target_ratios = sorted(target_ratios, key=lambda x: x[0] * x[1])
 
         # find the closest aspect ratio to the target
+        # 查找最接近目标的宽高比。
         target_aspect_ratio = self.find_closest_aspect_ratio(
             aspect_ratio, target_ratios, orig_width, orig_height, image_size)
 
         # calculate the target width and height
+        # 计算缩放后的目标宽度和高度。
         target_width = image_size * target_aspect_ratio[0]
         target_height = image_size * target_aspect_ratio[1]
         blocks = target_aspect_ratio[0] * target_aspect_ratio[1]
 
         # resize the image
+        # 缩放图片。
         resized_img = image.resize((target_width, target_height))
         processed_images = []
         for i in range(blocks):
@@ -217,6 +226,7 @@ class InternVL2InferenceEngine(BaseInferenceEngine):
                 ((i // (target_width // image_size)) + 1) * image_size
             )
             # split the image
+            # 将图片切成多个图块。
             split_img = resized_img.crop(box)
             processed_images.append(split_img)
         assert len(processed_images) == blocks
@@ -236,12 +246,17 @@ class InternVL2InferenceEngine(BaseInferenceEngine):
     def generate(self, input_list, **params):
         import torch
         # TODO: Currently only support single image batch or multi-image without batch 
+        # 待办：当前只支持单图批量推理，或不分批的多图推理。
         # convert input format to internvl2
+        # 转换为 InternVL2 所需的输入格式。
         final_prompt_list = [] # each is a str
+        # 每一项是字符串。
         final_image_list = [] # each is a list
+        # 每一项是列表。
         system_message = None
         for messages in input_list:
             # parse each query
+            # 解析每条查询。
             for item in messages:
                 if item['role'] == 'system':
                     assert isinstance(item['content'], str)
@@ -249,10 +264,12 @@ class InternVL2InferenceEngine(BaseInferenceEngine):
                 else:
                     if isinstance(item['content'], str):
                         # pure text input
+                        # 纯文本输入。
                         final_prompt_list.append(item['content'])
                         final_image_list.append([])
                     else:
                         # multimodal input
+                        # 多模态输入。
                         image_list = [d['image'] for d in item['content'] if d['type'] == 'image']
                         text = [d['text'] for d in item['content'] if d['type'] == 'text'][0]
                         final_prompt_list.append(text)
@@ -265,6 +282,7 @@ class InternVL2InferenceEngine(BaseInferenceEngine):
         if all([len(image_list) ==1 for image_list in final_image_list]):
             torch.cuda.empty_cache()
             # batch inference with single image
+            # 对每条样本只有一张图片的情况执行批量推理。
             final_image_list = [image_list[0] for image_list in final_image_list]
             pixel_values = torch.cat(final_image_list, dim=0)
             num_patches_list = [img.size(0) for img in final_image_list]
@@ -281,6 +299,7 @@ class InternVL2InferenceEngine(BaseInferenceEngine):
             return outputs
         else:
             # do single item inference with multi image 
+            # 对包含多张图片的样本逐条推理。
             outputs = []
             for image_list, prompt in zip(final_image_list, final_prompt_list):
                 torch.cuda.empty_cache()
@@ -326,6 +345,7 @@ class LlavaInferenceEngine(BaseInferenceEngine):
     @torch.inference_mode(mode=True)
     def generate(self, input_list, **params):
         # add special tokens
+        # 添加特殊 token。
         new_input_list = []
         visual_list = []
         for messages in input_list:
@@ -334,6 +354,7 @@ class LlavaInferenceEngine(BaseInferenceEngine):
                 item_visual_list = []
                 if isinstance(message['content'],list):
                     # remove all image
+                    # 移除所有图片。
                     image_list = [item['image'] for item in message['content'] if item['type'] == 'image']
                     item_visual_list.extend(image_list)
                     text_content = [item['text'] for item in message['content'] if item['type'] == 'text'][0]
@@ -401,6 +422,7 @@ class HFMultiModalGenerator(BaseMultiModalGenerator):
         **params
     ):
         # solve params
+        # 整理并协调参数。
         if not isinstance(input_list[0], list):
             input_list = [input_list]
         if batch_size is None:
@@ -414,6 +436,7 @@ class HFMultiModalGenerator(BaseMultiModalGenerator):
         if generation_params['do_sample'] == False:
             generation_params['temperature'] = 0
         # deal stop params
+        # 处理停止词参数。
         stop_sym = None
         if "stop" in generation_params:
             from flashrag.generator.stop_word_criteria import StopWordCriteria
@@ -431,6 +454,7 @@ class HFMultiModalGenerator(BaseMultiModalGenerator):
         generation_params = resolve_max_tokens(params, generation_params, prioritize_new_tokens=True)
 
         # preprocess input list
+        # 预处理输入列表。
         from PIL import Image
         for messages in input_list:
             for message in messages:

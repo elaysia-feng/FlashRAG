@@ -2,6 +2,7 @@ import re
 
 def selfask_pred_parse(dataset):
     """Parsing the prediction results of self-ask format."""
+    # 从 Self-Ask 输出中整理最终答案，供统一评估使用。
     FINAL_ANSWER_PREFIX = "So the final answer is: "
 
     for item in dataset:

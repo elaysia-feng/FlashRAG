@@ -73,6 +73,7 @@ class TestBleu(unittest.TestCase):
                 self.assertAlmostEqual(sample_scores[0], 1.0)
                 self.assertEqual(sample_scores[1], 0.0)
                 # 6 predicted tokens against 7 reference tokens over the corpus
+                # 整个语料中有 6 个预测 token，对应 7 个参考 token。
                 self.assertAlmostEqual(result["bleu"], math.exp(1 - 7 / 6))
 
 

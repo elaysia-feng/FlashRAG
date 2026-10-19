@@ -25,14 +25,21 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         )
 
     # input ids : bs, n, seq_len -> bs, n*seq_len
+    # 输入形状从批次×文档数×长度，变为批次×所有文档拼接长度。
     # We need to resize as B x (N * L) instead of (B * N) x L here
+    # 这里需要调整为 B×(N×L)，而不是 (B×N)×L。
     # because the T5 forward method uses the input tensors to infer
+    # 因为 T5 的 forward 会根据输入张量推断维度。
     # dimensions used in the decoder.
+    # 推断出的维度会用于解码器。
     # EncoderWrapper resizes the inputs as (B * N) x L.
+    # EncoderWrapper 内部再把输入调整为 (B×N)×L。
     def forward(self, input_ids=None, attention_mask=None, **kwargs):
         if input_ids != None:
             # (bs, n, seq_len) -> (bs, n*seq_len) 
+            # 将每个样本的多篇文档展开为一条长序列。
             # inputs might have already be resized in the generate method
+            # 输入可能已经在 generate 方法中调整过形状。
             if input_ids.dim() == 3:
                 self.encoder.n_passages = input_ids.size(1)
                 input_ids = input_ids.view(input_ids.size(0), -1)
@@ -47,6 +54,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
 
     def generate(self, input_ids, attention_mask, **kwargs):
         # input ids - bs, n, seq_len -> bs, n*seq_len
+        # 输入 token 从三维文档布局展平为二维批次布局。
         self.encoder.n_passages = input_ids.size(1)
         return super().generate(
             input_ids=input_ids.view(input_ids.size(0), -1),
@@ -58,6 +66,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         """
         Wrap T5 encoder to obtain a Fusion-in-Decoder model.
         """
+        # 包装原编码器，使多篇文档独立编码后能合并为解码器输入。
         self.encoder = EncoderWrapper(self.encoder)
     
  
@@ -65,6 +74,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         """
         Unwrap Fusion-in-Decoder encoder, useful to load T5 weights.
         """
+        # 还原编码器包装，供加载原始预训练模型权重使用。
         self.encoder = self.encoder.encoder
         block = []
         for mod in self.encoder.block:
@@ -82,6 +92,7 @@ class FiDT5(transformers.T5ForConditionalGeneration):
         Enable or disable checkpointing in the encoder.
         See https://pytorch.org/docs/stable/checkpoint.html
         """
+        # 切换编码器块的梯度检查点开关。
         for mod in self.encoder.encoder.block:
             mod.use_checkpoint = use_checkpoint
 
@@ -93,6 +104,7 @@ class CheckpointWrapper(torch.nn.Module):
     Wrapper replacing None outputs by empty tensors, which allows the use of
     checkpointing.
     """
+    # 在训练且启用检查点时包装模型块的前向计算。
     def __init__(self, module, use_checkpoint=False):
         super().__init__()
         self.module = module
@@ -126,6 +138,7 @@ def apply_checkpoint_wrapper(t5stack, use_checkpoint):
     """
     Wrap each block of the encoder to enable checkpointing.
     """
+    # 包装编码器块，使 FiD 编码阶段可以按配置使用梯度检查点。
     block = []
     for mod in t5stack.block:
         wrapped_mod = CheckpointWrapper(mod, use_checkpoint)
@@ -143,7 +156,9 @@ class FiDBart(transformers.BartForConditionalGeneration):
         
         if input_ids != None:
             # (bs, n, seq_len) -> (bs, n*seq_len) 
+            # 将每个样本的多篇文档展开为一条长序列。
             # inputs might have already be resized in the generate method
+            # 输入可能已经在 generate 方法中调整过形状。
             if input_ids.dim() == 3:
                 self.model.encoder.n_passages = input_ids.size(1)
                 input_ids = input_ids.view(input_ids.size(0), -1)
@@ -164,12 +179,14 @@ class FiDBart(transformers.BartForConditionalGeneration):
         """
         Wrap T5 encoder to obtain a Fusion-in-Decoder model.
         """
+        # 包装原编码器，使多篇文档独立编码后能合并为解码器输入。
         self.model.encoder = EncoderWrapper(self.model.encoder)
         
     def unwrap_encoder(self):
         """
         Unwrap Fusion-in-Decoder encoder, useful to load bart weights.
         """
+        # 还原编码器包装，供加载原始预训练模型权重使用。
         self.model.encoder = self.model.encoder.encoder
         block = []
         for mod in self.model.encoder.layers:
@@ -199,6 +216,7 @@ class EncoderWrapper(torch.nn.Module):
         bsz, total_length = input_ids.shape
         passage_length = total_length // self.n_passages
         # total_input
+        # 全部输入。
         input_ids = input_ids.view(bsz*self.n_passages, passage_length)
         attention_mask = attention_mask.view(bsz*self.n_passages, passage_length)
         outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask, **kwargs) 

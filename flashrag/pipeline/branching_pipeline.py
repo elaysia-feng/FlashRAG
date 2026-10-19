@@ -15,6 +15,7 @@ class REPLUGPipeline(BasicPipeline):
 
         super().__init__(config, prompt_template)
         # load specify model for REPLUG
+        # 加载 REPLUG 专用模型。
         if generator is None:
             model = load_replug_model(config["generator_model_path"])
             generator = get_generator(config, model=model)
@@ -42,6 +43,7 @@ class REPLUGPipeline(BasicPipeline):
 
         pred_answer_list = []
         # each doc has a prompt
+        # 每篇文档分别对应一条提示词。
         for item in tqdm(dataset, desc="Inference: "):
             docs = [self.format_reference(doc_item) for doc_item in item.retrieval_result]
             prompts = self.build_single_doc_prompt(question=item.question, doc_list=docs)
@@ -51,6 +53,7 @@ class REPLUGPipeline(BasicPipeline):
                 prompts, batch_size=len(docs), logits_processor=LogitsProcessorList([REPLUGLogitsProcessor(scores)])
             )
             # the output of the batch is same
+            # 此批次中的输出相同，取其中一条即可。
             output = output[0]
             pred_answer_list.append(output)
 
@@ -76,6 +79,7 @@ class SuRePipeline(BasicPipeline):
 
     def load_prompts(self):
         # prompt for candidates generation
+        # 用于生成候选答案的提示词。
         P_CAN_INSTRUCT = (
             "Below are {N} passages related to the question at the end. After reading"
             "the passages, provide two correct candidates for the answer to the"
@@ -87,6 +91,7 @@ class SuRePipeline(BasicPipeline):
         )
 
         # prompt for candidate-conditioned summarization
+        # 以候选答案为条件生成支持摘要的提示词。
         P_SUM_INSTRUCT = (
             "Reference:\n{reference}\n"
             "Your job is to act as a professional writer. You need to write a"
@@ -100,6 +105,7 @@ class SuRePipeline(BasicPipeline):
         )
 
         # prompt for instance-wise validation
+        # 逐个验证候选的提示词。
         P_VAL_INSTRUCT = (
             "Question: {question}\n"
             "Prediction: {pred}\n"
@@ -109,6 +115,7 @@ class SuRePipeline(BasicPipeline):
         )
 
         # prompt for pair-wise ranking
+        # 两两比较摘要的排序提示词。
         P_RANK_INSTRUCT = (
             "Question: Given the following passages, determine which one provides a"
             "more informative answer to the subsequent question.\n"
@@ -140,17 +147,20 @@ class SuRePipeline(BasicPipeline):
     @staticmethod
     def parse_candidates(model_response):
         """Parse candidates from model response"""
+        # 从带候选序号的模型文本提取答案候选并清理分隔符。
         model_response = model_response.strip("\n").strip()
         # r'\([a-z]\) ([^,]+)'
         candidates = re.findall("\((\w+)\)\s*([^()]+)", model_response)
         candidates = [cand[1].split("\n")[0].strip() for cand in candidates]
         # post-process
+        # 对结果进行后处理。
         candidates = [cand.replace(",", "").strip() for cand in candidates]
         return candidates
 
     @staticmethod
     def parse_validation(model_response):
         """Parse model's validation result into score based on the paper formula"""
+        # 将模型验证结果转换为 SuRe 使用的二值支持分数。
         model_response = model_response.strip().lower()
         if "true" in model_response:
             return 1
@@ -160,6 +170,7 @@ class SuRePipeline(BasicPipeline):
     @staticmethod
     def parse_ranking(model_response):
         """Parse model's pair ranking result into score"""
+        # 解析两篇摘要的比较结果；无法识别偏好时使用中立分数。
         model_response = model_response.strip().lower()
         if "passage 1" in model_response:
             score = 1
@@ -180,6 +191,7 @@ class SuRePipeline(BasicPipeline):
             retrieval_result = item.retrieval_result
             doc_num = len(retrieval_result)
             # format all docs
+            # 格式化全部文档。
             for doc_item in retrieval_result:
                 if "title" not in doc_item or "text" not in doc_item:
                     doc_item["title"] = doc_item["contents"].split("\n")[0]
@@ -188,6 +200,7 @@ class SuRePipeline(BasicPipeline):
                 titles=[i["title"] for i in retrieval_result], texts=[i["text"] for i in retrieval_result]
             )
             # get candidates
+            # 获取候选答案。
 
             input_prompt = self.P_CAN_TEMPLATE.get_string(
                 N=doc_num, formatted_reference=formatted_ref, question=item.question
@@ -203,6 +216,7 @@ class SuRePipeline(BasicPipeline):
                 continue
 
             # get summarization for each candidate
+            # 为每个候选生成支持摘要。
             input_prompts = [
                 self.P_SUM_TEMPLATE.get_string(question=item.question, pred=cand, formatted_reference=formatted_ref)
                 for cand in candidates
@@ -212,6 +226,7 @@ class SuRePipeline(BasicPipeline):
             item.update_output("all_summary", all_summary)
 
             # instance-wise validation
+            # 分别验证每个候选。
             input_prompts = [
                 self.P_VAL_TEMPLATE.get_string(question=item.question, pred=cand, summary=summary)
                 for cand, summary in zip(candidates, all_summary)
@@ -221,6 +236,7 @@ class SuRePipeline(BasicPipeline):
             item.update_output("val_scores", val_scores)
 
             # pair-wise ranking
+            # 对候选摘要进行两两排序。
             summary_num = len(all_summary)
             score_matrix = np.zeros((summary_num, summary_num))
             iter_idxs = list(itertools.permutations(range(summary_num), 2))
@@ -235,9 +251,11 @@ class SuRePipeline(BasicPipeline):
             for idx_tuple, score in zip(iter_idxs, ranking_scores):
                 score_matrix[idx_tuple[0], idx_tuple[1]] = score
             ranking_scores = score_matrix.sum(axis=1).squeeze().tolist()  # ranking score for each summary
+            # 每篇摘要的排序分数。
             item.update_output("ranking_scores", ranking_scores)
 
             # combine two scores as the final score for each summary
+            # 合并两类分数，得到每篇摘要的最终得分。
             if not isinstance(ranking_scores, list):
                 ranking_scores = [ranking_scores]
             if not isinstance(val_scores, list):

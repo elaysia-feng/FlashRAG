@@ -12,6 +12,7 @@ class Manager:
         r"""
         Adds elements to manager.
         """
+        # 把一组控件及其标识注册到 Manager。
         for elem_name, elem in elem_dict.items():
             elem_id = f"{tab_name}.{elem_name}"
             self._id_to_elem[elem_id] = elem
@@ -21,6 +22,7 @@ class Manager:
         r"""
         Returns the list of all elements.
         """
+        # 返回全部已注册组件的列表。
         return list(self._id_to_elem.values())
 
     def get_elem_list_without_accordion(self) -> List["Component"]:
@@ -34,6 +36,7 @@ class Manager:
         r"""
         Returns an iterator over all elements with their names.
         """
+        # 返回组件名称及实例的迭代器。
         for elem_id, elem in self._id_to_elem.items():
             yield elem_id.split(".")[-1], elem
     
@@ -41,6 +44,7 @@ class Manager:
         r"""
         Returns an iterator over all elements with their names.
         """
+        # 返回完整组件标识及实例的迭代器。
         for elem_id, elem in self._id_to_elem.items():
             yield elem_id, elem
 
@@ -50,10 +54,12 @@ class Manager:
 
         Example: top.lang, train.dataset
         """
+        # 按标识取得组件实例。
         return self._id_to_elem[elem_id]
 
     def get_id_by_elem(self, elem: "Component") -> str:
         r"""
         Gets id by element.
         """
+        # 按组件实例反查其标识。
         return self._elem_to_id[elem]

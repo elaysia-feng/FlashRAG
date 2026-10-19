@@ -33,6 +33,7 @@ class REPLUGPipeline_Chat(BaseChatPipeline, REPLUGPipeline):
 
         pred_answer_list = []
         # each doc has a prompt
+        # 每篇文档分别对应一条提示词。
         for item in dataset:
             docs = [self.format_reference(doc_item) for doc_item in item.retrieval_result]
             prompts = self.build_single_doc_prompt(
@@ -48,6 +49,7 @@ class REPLUGPipeline_Chat(BaseChatPipeline, REPLUGPipeline):
             )
             
             # the output of the batch is same
+            # 此批次中的输出相同，取其中一条即可。
             output = output[0]
             pred_answer_list.append(output)
 
@@ -74,6 +76,7 @@ class SuRePipeline_Chat(BaseChatPipeline, SuRePipeline):
             retrieval_result = item.retrieval_result
             doc_num = len(retrieval_result)
             # format all docs
+            # 格式化全部文档。
             for doc_item in retrieval_result:
                 if "title" not in doc_item or "text" not in doc_item:
                     doc_item["title"] = doc_item["contents"].split("\n")[0]
@@ -83,6 +86,7 @@ class SuRePipeline_Chat(BaseChatPipeline, SuRePipeline):
             )
             
             # get candidates
+            # 获取候选答案。
             input_prompt = self.P_CAN_TEMPLATE.get_string(
                 N = doc_num,
                 formatted_reference = formatted_ref,
@@ -102,6 +106,7 @@ class SuRePipeline_Chat(BaseChatPipeline, SuRePipeline):
                 continue
 
             # get summarization for each candidate
+            # 为每个候选生成支持摘要。
             input_prompts = [
                 self.P_SUM_TEMPLATE.get_string(question=item.question, pred=cand, formatted_reference=formatted_ref)
                 for cand in candidates
@@ -113,6 +118,7 @@ class SuRePipeline_Chat(BaseChatPipeline, SuRePipeline):
 
 
             # instance-wise validation
+            # 分别验证每个候选。
             input_prompts = [
                 self.P_VAL_TEMPLATE.get_string(
                     question = item.question,
@@ -128,6 +134,7 @@ class SuRePipeline_Chat(BaseChatPipeline, SuRePipeline):
 
 
             # pair-wise ranking
+            # 对候选摘要进行两两排序。
             summary_num = len(all_summary)
             score_matrix = np.zeros((summary_num, summary_num))
             iter_idxs = list(itertools.permutations(range(summary_num), 2))
@@ -142,11 +149,13 @@ class SuRePipeline_Chat(BaseChatPipeline, SuRePipeline):
             for idx_tuple, score in zip(iter_idxs, ranking_scores):
                 score_matrix[idx_tuple[0], idx_tuple[1]] = score
             ranking_scores = score_matrix.sum(axis=1).squeeze().tolist()  # ranking score for each summary
+            # 每篇摘要的排序分数。
             item.update_output("ranking_scores", ranking_scores)
             yield from self.display_middle_result(str(ranking_scores), 'Ranking Scores')
 
 
             # combine two scores as the final score for each summary
+            # 合并两类分数，得到每篇摘要的最终得分。
             if not isinstance(ranking_scores, list):
                 ranking_scores = [ranking_scores]
             if not isinstance(val_scores, list):

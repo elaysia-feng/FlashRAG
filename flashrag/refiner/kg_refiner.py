@@ -20,12 +20,17 @@ class KGTraceRefiner(BaseRefiner):
             "num_examplars": 3,
             "max_chain_length": 4,
             "topk_triple_select": 5,  # num of candidate triples
+            # 候选三元组的数量。
             "num_choices": 20,
             "min_triple_prob": 1e-4,
             "num_beams": 5,  # number of selected prob at each step of constructing chain
+            # 构建推理链时每一步保留的概率候选数量。
             "num_chains": 20,  # number of generated chains
+            # 生成的推理链数量。
             "n_context": 5,  # number of used chains in generation
+            # 回答生成阶段使用的推理链数量。
             "context_type": "triples",  # triples/triple-doc
+            # 上下文形式：仅三元组，或三元组及其来源文档。
             "triple_save_path": os.path.join(config["save_dir"], "save_triples.json"),
             "triple_load_path": None,
         }
@@ -46,6 +51,7 @@ class KGTraceRefiner(BaseRefiner):
         self.triple_load_path = self.kg_setting["triple_load_path"]
 
         # set necessary component
+        # 设置必需组件。
         if retriever is None:
             print("Load new retriever")
             from flashrag.utils import get_retriever
@@ -62,6 +68,7 @@ class KGTraceRefiner(BaseRefiner):
             self.generator = generator
 
         # load demonstrations
+        # 加载少样本示例。
         if config["retrieval_method"] != "e5":
             self.encoder = Encoder(
                 model_name="e5",
@@ -74,6 +81,7 @@ class KGTraceRefiner(BaseRefiner):
             self.encoder = self.retriever.encoder
 
         # load demonstrations for generating triples and reasoning chain
+        # 分别加载三元组提取和推理链生成所需的示例。
         if config["dataset_name"].lower() == "hotpotqa":
             from flashrag.prompt.trace_examplars import (
                 TRIPLE_EXAMPLARS_HOTPOTQA,
@@ -106,6 +114,7 @@ class KGTraceRefiner(BaseRefiner):
             self.generating_chain_examplars = GENERATING_CHAIN_EXAMPLARS_2WIKIMULTIHOPQA
         else:
             # use hotpotqa examplars
+            # 使用 HotpotQA 的示例。
             from flashrag.prompt.trace_examplars import (
                 TRIPLE_EXAMPLARS_HOTPOTQA,
                 GENERATING_CHAIN_EXAMPLARS_HOTPOTQA,
@@ -129,10 +138,12 @@ class KGTraceRefiner(BaseRefiner):
                 self.extracted_doc_triples = json.load(f)
         else:
             self.extracted_doc_triples = {}  # id: triples
+            # 缓存映射：文档标识对应三元组。
         self.token_id_to_choice_map = None
 
     def get_examplars_for_triple(self, doc_list, batch_size=64):
         # load demonstrations for each doc
+        # 为每篇文档选择示例。
         doc_examplars = []
 
         doc_text_list = []
@@ -195,9 +206,11 @@ class KGTraceRefiner(BaseRefiner):
             return results
 
         # parse model_outputs
+        # 解析模型输出。
         results = []
         for j, (doc_content, generated_content) in enumerate(zip(doc_list, output_list)):
             triples = parse_model_output(generated_content)  # [(head, relation, tail)]
+            # 每个三元组依次包含头实体、关系和尾实体。
             triples_in_one_document = []
             title = doc_content.split("\n")[0]
             text = "\n".join(doc_content.split("\n")[1:])
@@ -220,8 +233,10 @@ class KGTraceRefiner(BaseRefiner):
         """
         Extract triples from documents associated with each query, handling duplicates and generating prompts for LLM processing.
         """
+        # 对检索文档去重并复用缓存，为未处理文档生成三元组。
 
         # deduplicate documents and map document IDs to their contents and associated queries
+        # 对文档去重，并建立文档标识到内容及关联问题的映射。
         unique_docs = {}
         doc_queries = {}
         for query, docs in zip(queries, retrieval_results):
@@ -235,16 +250,20 @@ class KGTraceRefiner(BaseRefiner):
                     doc_queries.setdefault(doc_id, []).append(query)
 
         # prepare data structures for document processing
+        # 准备文档处理所需的数据结构。
         doc_ids = list(unique_docs.keys())
         doc_id_mapping = {doc_id: index for index, doc_id in enumerate(doc_ids)}
         docs_content = [unique_docs[doc_id] for doc_id in doc_ids]
 
         if len(docs_content) > 0:
             # obtain exemplars for each document
+            # 为每篇文档取得示例。
             doc_examplars = self.get_examplars_for_triple(docs_content)
 
             # construct prompts for triple extraction using an LLM
+            # 构造调用语言模型提取三元组的提示词。
             # prompts for extracting triples from documents
+            # 从文档提取三元组的提示词。
             system_prompt = (
                 "Given a title and a text, extract all the knowledge triples in the form of <title; relation; tail entity>, "
                 "where title is the provided title, tail entity is a phrase in the text and relation denotes a description of the relation "
@@ -265,10 +284,12 @@ class KGTraceRefiner(BaseRefiner):
             ]
 
             # generate triples via the language model
+            # 通过语言模型生成三元组。
             outputs = self.generator.generate(prompts, max_tokens=512)
             triples = self.parse_triple_output(docs_content, outputs)
 
         # reconstruct triples for the original query-documents structure
+        # 按原始问题与文档的分组关系恢复三元组结果。
         all_doc_triples = []
         for query_retrieval_result in retrieval_results:
             query_triples = []
@@ -315,6 +336,7 @@ class KGTraceRefiner(BaseRefiner):
             )
 
             # deal with examplars
+            # 处理少样本示例。
             examplars = []
             for i, (rp_examplar, grp_examplar) in enumerate(zip(final_chain_examplars, generating_chain_examplars)):
                 if len(grp_examplar) < hop + 1:
@@ -358,6 +380,7 @@ class KGTraceRefiner(BaseRefiner):
 
     def get_answer_token_indices(self, tokenizer, num_choices, token_ids):
         """Obtain the index of token corresponsding to the option"""
+        # 建立选项字符与生成 token 位置的对应关系，用于读取选择概率。
         if self.token_id_to_choice_map is None:
             self.token_id_to_choice_map = {}
             choices = [chr(ord("A") + i) for i in range(num_choices + 1)]
@@ -388,7 +411,9 @@ class KGTraceRefiner(BaseRefiner):
             desc="Generating reasoning chain for query",
         ):
             # run single item
+            # 处理单条样本。
             flatten_triples = sum(doc_triples, [])  # all triples
+            # 全部三元组。
             flatten_doc_ids = sum(
                 [
                     [doc_id for _ in single_doc_triple]
@@ -404,6 +429,7 @@ class KGTraceRefiner(BaseRefiner):
             triple_embeddings = torch.tensor(self.encoder.encode(triple_text, is_query=False))
 
             paths = [[]]  # each list contains index of triples to format a reasoning path
+            # 每个列表保存组成一条推理路径的三元组位置。
             paths_scores = [1.0]
             paths_finished = [False]
 
@@ -412,6 +438,7 @@ class KGTraceRefiner(BaseRefiner):
                     break
 
                 # triple rank: concatenation of question and selected triples as query
+                # 将问题与已选三元组拼接为查询，对候选三元组排序。
                 path_queries = [
                     "knowledge triples: {}\nquestion: {}".format(" ".join([triple_text[idx] for idx in path]), query)
                     for path in paths
@@ -422,6 +449,7 @@ class KGTraceRefiner(BaseRefiner):
                 candidate_triples_mask = torch.ones_like(path_triples_similarities)
                 for k, path in enumerate(paths):
                     # mask the chosen triples
+                    # 屏蔽已经选过的三元组。
                     candidate_triples_mask[k, path] = 0.0
                 path_triples_similarities = path_triples_similarities - 10000 * (1.0 - candidate_triples_mask)
                 topk_most_relevant_triples_indices = torch.topk(
@@ -429,15 +457,19 @@ class KGTraceRefiner(BaseRefiner):
                 )[1].tolist()
 
                 # construct prompts for selecting triple in reasoning chain
+                # 构造选择推理链下一个三元组的提示词。
                 # for each path, create an input to LLM
+                # 为每条推理路径分别构造语言模型输入。
                 input_prompts = []
                 exisiting_triples = [
                     [triple_text[idx] for idx in path] for path in paths
                 ]  # each item represents existing triples path
+                # 每项表示一条已有的三元组路径。
                 candidate_triples = [
                     [triple_text[idx] for idx in candidate_triples_indices]
                     for candidate_triples_indices in topk_most_relevant_triples_indices
                 ]  # each item represents candidate triples in a path
+                # 每项表示当前路径对应的候选三元组。
                 for triples, candidates in zip(exisiting_triples, candidate_triples):
                     prompt = self.build_prompt_for_reasoning_chain(
                         hop=j,
@@ -451,6 +483,7 @@ class KGTraceRefiner(BaseRefiner):
                     input_prompts.append(prompt)
 
                 # get generated result
+                # 取得生成结果。
                 torch.cuda.empty_cache()
                 generate_output = self.generator.generate(input_prompts, max_tokens=32, return_dict=True)
                 generated_token_ids, generated_token_logits = (
@@ -470,12 +503,14 @@ class KGTraceRefiner(BaseRefiner):
                 choices_list = [
                     self.token_id_to_choice_map[token_id] for token_id in choices_token_ids_list
                 ]  # ['A','B','C',..], may be duplication
+                # 候选选项可以是 A、B、C 等，其中可能有重复项。
                 answer_token_probs = F.softmax(answer_token_logits[:, choices_token_ids_list], dim=1)
 
                 new_paths, new_paths_scores, new_paths_finished = [], [], []
                 topk_choices_probs, topk_choices_indices = torch.topk(
                     answer_token_probs, k=self.num_beams, dim=1
                 )  # for each path, select choice token in topk probs
+                # 为每条路径，从 topk 概率中选取选项 token。
                 for i in range(len(paths)):
                     if paths_finished[i]:
                         new_paths.append(paths[i])
@@ -503,6 +538,7 @@ class KGTraceRefiner(BaseRefiner):
                             ord(current_choice) - ord("B") >= len(topk_most_relevant_triples_indices[i])
                         ):
                             # generated invalid option
+                            # 模型生成了无效选项。
                             continue
                         new_paths_scores.append(paths_scores[i] * topk_choices_probs[i, b].item())
                         if current_choice == "A":
@@ -532,8 +568,10 @@ class KGTraceRefiner(BaseRefiner):
                 }
                 for path, path_score in zip(paths, paths_scores)
             ]  # Contains paths with their scores
+            # 包含推理路径及其分数。
 
             # sort with scores
+            # 按分数排序。
             query_chain_result.sort(key=lambda x: float(x["score"]), reverse=True)
 
             all_chain_results.append(query_chain_result)
@@ -563,6 +601,7 @@ class KGTraceRefiner(BaseRefiner):
         ]
         dataset.update_output("doc_triples", all_doc_triples)
         # save triples for re-use
+        # 保存三元组，供后续复用。
         with open(self.triple_save_path, "w") as f:
             json.dump(self.extracted_doc_triples, f, indent=4)
         print("Finish extracting tiples")
@@ -573,11 +612,13 @@ class KGTraceRefiner(BaseRefiner):
         print("Finish generating reasoning chain")
 
         # get refine result based on context type
+        # 根据上下文类型整理精炼结果。
         refine_result = []
 
         if self.context_type == "triples":
             for query_chain_result in reasoning_chain_result:
                 # query_chain_list: reasoning chain for a query
+                # 当前问题对应的推理链列表。
                 query_chain_result = query_chain_result[: self.n_context]
                 all_triple_text = []
                 for chain in query_chain_result:

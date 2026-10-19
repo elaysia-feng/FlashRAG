@@ -25,7 +25,9 @@ class IterativePipeline(BasicPipeline):
     def run(self, dataset, do_eval=True, pred_process_fun=None):
         questions = dataset.question
         # run in batch
+        # 批量执行。
         past_generation_result = []  # list of N items
+        # 包含 N 条样本的列表。
         for iter_idx in range(self.iter_num):
             if iter_idx == 0:
                 input_query = questions
@@ -34,10 +36,12 @@ class IterativePipeline(BasicPipeline):
                 input_query = [f"{q} {r}" for q, r in zip(questions, past_generation_result)]
 
             # generation-augmented retrieval
+            # 用上一轮生成结果增强检索查询。
             retrieval_results = self.retriever.batch_search(input_query)
             dataset.update_output(f"retrieval_result_iter_{iter_idx}", retrieval_results)
 
             # retrieval-augmented generation
+            # 用召回证据增强回答生成。
             # input_prompts = self.build_prompt(questions, retrieval_results)
             input_prompts = [
                 self.prompt_template.get_string(question=q, retrieval_result=r)
@@ -49,6 +53,7 @@ class IterativePipeline(BasicPipeline):
             dataset.update_output(f"pred_iter_{iter_idx}", past_generation_result)
 
         # use last retrieval result for evaluation
+        # 使用最后一轮检索结果进行评估。
         dataset.update_output("retrieval_result", retrieval_results)
 
         dataset.update_output("pred", past_generation_result)
@@ -174,6 +179,7 @@ class SelfRAGPipeline(BasicPipeline):
     def judge_retrieve(self, input_prompts):
         """Calculate whether a retrieve is required based on the output probability of
         the special token in the model"""
+        # 根据 Self-RAG 检索标记及其概率判断是否需要证据。
 
         if self.mode == "always_retrieve":
             retrieval_flags = [True] * len(input_prompts)
@@ -183,10 +189,13 @@ class SelfRAGPipeline(BasicPipeline):
 
         else:
             # result for total batch
+            # 整个批次的结果。
             all_pred_text = []
             all_pred_log_probs = []
             # For vllm, requesting too many logprobes can seriously affect speed
+            # 对 vLLM 请求过多 token 对数概率会明显降低速度。
             # 20 probs is enough for calculate
+            # 此处计算只需要 20 个候选的概率。
             preds = self.generator.generate(input_prompts, return_raw_output=True, logprobs=20, max_tokens=1, skip_special_tokens=False)
             for single_pred in preds:
                 pred_text = single_pred.outputs[0].text
@@ -217,6 +226,7 @@ class SelfRAGPipeline(BasicPipeline):
 
     def critic_preds(self, preds):
         """Evaluate predictions using different retrieval docs"""
+        # 结合相关性、支持性与效用信号评价候选生成结果。
 
         relevance_score_dict = {}
         grd_score_dict = {}
@@ -232,6 +242,7 @@ class SelfRAGPipeline(BasicPipeline):
             grd_score_dict.setdefault(p_idx, {})
             ut_score_dict.setdefault(p_idx, {})
             # Compute reward scores
+            # 计算奖励分数。
             for tok, id in self.rel_tokens.items():
                 prob = pred_log_probs[0][id].logprob if id in pred_log_probs[0] else -100
                 relevance_score_dict[p_idx][tok] = np.exp(float(prob))
@@ -304,6 +315,7 @@ class SelfRAGPipeline(BasicPipeline):
             results["retrieval_{}".format(p_idx)] = {"pred": pred_text, "score": final_score}
 
         # modify and add do retrieve tokens (only used in long-form generation)
+        # 修改并补充触发检索的标记，仅用于长文本生成。
         final_preds = []
         if "[No Retrieval]" in pred_text:
             ret_token_appear_indices = []
@@ -351,6 +363,7 @@ class SelfRAGPipeline(BasicPipeline):
     def postprocess_prediction(self, pred):
         def fix_spacing(input_text):
             # Add a space after periods that lack whitespace
+            # 在句点后缺少空白的位置添加空格。
             output_text = re.sub(r"(?<=\w)([.!?])(?=\w)", r"\1 ", input_text)
             return output_text
 
@@ -469,6 +482,7 @@ class SelfRAGPipeline(BasicPipeline):
         best_selections = {}
 
         # Traverse from the bottom
+        # 从底部开始遍历。
         levels = {k: v for k, v in levels.items() if len(v) > 0 and k != 0}
         for path_i, node in enumerate(levels[len(levels)]):
             if node == 0:
@@ -592,10 +606,12 @@ class SelfRAGPipeline(BasicPipeline):
         input_prompts = [self.prompt_template.get_string(question=q) for q in questions]
 
         # determine whether to retrieve
+        # 判断是否需要检索。
         retrieval_flags = self.judge_retrieve(input_prompts)
         dataset.update_output("retrieval_flag", retrieval_flags)
 
         # for long form task, only support single item run
+        # 长文本任务只支持逐条运行。
         for item, prompt, retrieval_flag in zip(dataset, input_prompts, retrieval_flags):
             if retrieval_flag:
                 pred, intermediate_result = self.run_single_beam(prompt, item_retrieval_result=item.retrieval_result)
@@ -618,6 +634,7 @@ class SelfRAGPipeline(BasicPipeline):
         run_func = self.run_batch_pred_long_form if long_form else self.run_batch_pred
         
         # # to avoid oom, split the total dataset into small batches
+        # 为避免显存不足，把整个数据集拆成小批次。
         # all_dataset_list = []
         # for batch_dataset in tqdm(get_batch_dataset(dataset, batch_size=batch_size), desc="Batch dataset: "):
         #     batch_dataset = run_func(batch_dataset)
@@ -637,10 +654,12 @@ class SelfRAGPipeline(BasicPipeline):
         input_prompts = [self.prompt_template.get_string(question=q) for q in questions]
 
         # determine whether to retrieve
+        # 判断是否需要检索。
         retrieval_flags = self.judge_retrieve(input_prompts)
         dataset.update_output("retrieval_flag", retrieval_flags)
 
         # process input item based on whether to retrieve
+        # 根据是否需要检索处理当前输入样本。
         all_input_list = []
         for idx, (prompt, item) in enumerate(zip(input_prompts, dataset)):
             retrieval_flag = retrieval_flags[idx]
@@ -648,6 +667,7 @@ class SelfRAGPipeline(BasicPipeline):
             if retrieval_flag:
                 retrieval_result = retrieval_results[idx]
                 # for each doc in retrieval result, there is a prompt as input
+                # 每篇召回文档分别构造一条输入提示词。
                 prompt_list = [
                     prompt + "[Retrieval]<paragraph>{}</paragraph>".format(para["contents"])
                     for para in retrieval_result
@@ -662,17 +682,20 @@ class SelfRAGPipeline(BasicPipeline):
         batch_pred = self.generator.generate(all_input_list, return_raw_output=True, logprobs=5)
 
         # parse output based on retrieval flag
+        # 根据检索标记解析模型输出。
         pred_idx = 0
         pred_answer_list = []
         for idx, (retrieval_flag, item) in enumerate(zip(retrieval_flags, dataset)):
             if retrieval_flag:
                 # for item that need retrieval, there may have more than one prediction
+                # 需要检索的样本可能对应多个候选预测。
                 item_pred = batch_pred[pred_idx : pred_idx + len(retrieval_results[idx])]
                 pred_idx += len(retrieval_results[idx])
                 critic_result, _, _, _ = self.critic_preds(item_pred)
                 item.update_output("critic_result", critic_result)
 
                 # select best prediction
+                # 选择最佳预测。
                 pred = self.select_best_prediction(critic_result)
 
             else:
@@ -759,18 +782,22 @@ class FLAREPipeline(BasicPipeline):
             # input_prompt = self.build_prompt(
             #     question_list=[question], use_reference=False, previous_gen=final_gen_result)[0]
             # scores: token logits of the whole generation seq
+            # 整段生成序列中各 token 的 logits。
             round_gen_output, scores = self.generator.generate(
                 input_prompt, return_scores=True, stop=self.stop_sym, max_new_tokens=self.look_ahead_steps
             )
             round_gen_output, scores = round_gen_output[0], scores[0]
             # next_sent_scores: token logits of the first sent in generation seq
+            # 新生成文本中第一句话的 token logits。
             next_sent, next_sent_score = self.get_next_sentence(round_gen_output, scores)
             # judge next sentence
+            # 判断下一句话的置信情况。
             judge_result, query = self.judge_sent_confidence(next_sent, next_sent_score)
             item.update_output(f"judge_result_iter{iter_round}", judge_result)
 
             if not judge_result:
                 # do retrieval-augmented generation
+                # 执行检索增强生成。
                 retrieval_result = self.retriever.search(query)
                 item.update_output("retrieval_result", retrieval_result)
                 input_prompt = self.prompt_template.get_string(
@@ -877,6 +904,7 @@ class SelfAskPipeline(BasicPipeline):
                 stop_condition = "Intermediate answer:"
 
             # make sure the result does not end in a new line
+            # 确保结果末尾没有多余换行。
             if len(res) == 0:
                 early_exit = True
                 break
@@ -885,6 +913,7 @@ class SelfAskPipeline(BasicPipeline):
 
             if "Follow up: " in gen_out:
                 # get the first follow up
+                # 获取第一个后续问题。
                 new_query = [l for l in gen_out.split("\n") if "Follow up: " in l][0].split("Follow up: ")[-1]
                 retrieval_result = self.retriever.search(new_query)
 
@@ -930,6 +959,7 @@ class IRCOTPipeline(BasicPipeline):
         self, config, prompt_template=None, max_iter=2, retriever=None, generator=None
     ):
         # if not provide prompt template, use default template provided by IRCOT
+        # 未提供提示模板时，使用 IRCOT 的默认模板。
         if prompt_template is None:
             if config['framework'] == 'openai':
                 enable_chat = True
@@ -952,6 +982,7 @@ class IRCOTPipeline(BasicPipeline):
 
     def run_batch(self, items):
         # Initialize the necessary data structures
+        # 初始化推理需要的数据结构。
         batch_thoughts = {item_id: [] for item_id in range(len(items))}
         iter_num = 0
         batch_retrieval_results = []
@@ -959,6 +990,7 @@ class IRCOTPipeline(BasicPipeline):
         id2doc_batch = []
 
         # Initial retrieval for all items in the batch
+        # 为批次中的全部样本执行初次检索。
         questions = [item.question for item in items]
         retrieval_results, scoress = self.retriever.batch_search(questions, return_score=True)
         for retrieval_result, scores in zip(retrieval_results,scoress):   
@@ -969,9 +1001,12 @@ class IRCOTPipeline(BasicPipeline):
             id2doc_batch.append(id2doc)
 
         # Start the iterative process
+        # 开始迭代推理。
         active_item_ids = list(range(len(items)))  # Track items that need more iterations
+        # 跟踪仍需要继续迭代的样本。
         while iter_num < self.max_iter:
             # Generate prompts and new thoughts for the active items
+            # 为尚未完成的样本构造提示词并生成新的推理内容。
             input_prompts = [
                 self.prompt_template.get_string(
                     question=items[item_id].question,
@@ -983,16 +1018,20 @@ class IRCOTPipeline(BasicPipeline):
             
 
             # Batch generation for active items
+            # 批量生成尚未完成样本的下一步内容。
             new_thoughts_batch = self.generator.generate(input_prompts, stop=['.', '\n'])
             
             # Update thoughts and determine next active items
+            # 更新推理内容，并确定下一轮仍需处理的样本。
             new_active_item_ids = []
             for idx, item_id in enumerate(active_item_ids):
                 new_thought = new_thoughts_batch[idx]
                 batch_thoughts[item_id].append(new_thought)
                 
                 # Check for termination condition
+                # 检查结束条件。
                 # Store intermediate outputs
+                # 保存中间输出。
                 items[item_id].update_output(
                         f'intermediate_output_iter{iter_num}', 
                         {
@@ -1004,9 +1043,11 @@ class IRCOTPipeline(BasicPipeline):
                     new_active_item_ids.append(item_id)
 
             # Update active item IDs for the next iteration
+            # 更新下一轮继续处理的样本标识。
             active_item_ids = new_active_item_ids
 
             # Perform batch retrieval for new thoughts of active items
+            # 用尚未完成样本的新推理内容批量检索。
             if active_item_ids:
                 new_thoughts_for_retrieval = [batch_thoughts[item_id][-1] for item_id in active_item_ids]
                 new_retrieval_results, new_scoress = self.retriever.batch_search(new_thoughts_for_retrieval, return_score=True)
@@ -1015,6 +1056,7 @@ class IRCOTPipeline(BasicPipeline):
                     new_retrieval_result, new_scores = new_retrieval_results[i],new_scoress[i]
                     
                     # Update doc2score and id2doc for the current item
+                    # 更新当前样本的文档分数与文档内容映射。
                     for doc_item, score in zip(new_retrieval_result, new_scores):
                         doc_id = doc_item['id']
                         id2doc_batch[item_id][doc_id] = doc_item
@@ -1024,6 +1066,7 @@ class IRCOTPipeline(BasicPipeline):
                             doc2score_batch[item_id][doc_id] = score
 
                     # Sort and update retrieval results
+                    # 对文档排序并更新检索结果。
                     sorted_doc_score = sorted(doc2score_batch[item_id].items(), key=lambda x: x[1], reverse=False)
                     sorted_doc_id = [t[0] for t in sorted_doc_score]
                     batch_retrieval_results[item_id] = [id2doc_batch[item_id][id] for id in sorted_doc_id]
@@ -1031,6 +1074,7 @@ class IRCOTPipeline(BasicPipeline):
             iter_num += 1
 
         # Final update for each item in the batch
+        # 为当前批次各样本写回最终结果。
         for item_id, item in enumerate(items):
             item.update_output('retrieval_result', batch_retrieval_results[item_id])
             item.update_output('pred', ' '.join(batch_thoughts[item_id]))
@@ -1095,6 +1139,7 @@ class RQRAGPipeline(BasicPipeline):
         self.batch_size = batch_size
         
         # Due to the low effiency of original method, it only supports vllm now.
+        # 原方法执行效率较低，因此此处暂时只支持 vLLM。
     
     def preprocess_eval_data(self, items: List) -> List[str]:
         eval_examples = []
@@ -1145,9 +1190,11 @@ class RQRAGPipeline(BasicPipeline):
                     continue
                 
                 # Prepare for inputs
+                # 准备输入。
                 input_texts = [path["prompt"] + special_token for path in current_batch]
             
                 # Generate outputs
+                # 生成输出。
                 if special_token != "[A_Response]":
                     init_outputs = self.generator.generate(
                         input_list = input_texts,
@@ -1162,11 +1209,14 @@ class RQRAGPipeline(BasicPipeline):
                     )
 
                 # Decode outputs
+                # 解码输出。
                 decoded_outputs = [output.outputs[0].text for output in init_outputs]
                 # Initialize lists to collect queries for batch retrieval
+                # 初始化本轮批量检索的查询收集列表。
                 queries_for_search = []
                 
                 # Process outputs and prepare for retrieval
+                # 处理生成结果并准备检索请求。
                 for i, decoded_output in enumerate(decoded_outputs):
                     current_path = current_batch[i]
                     decoded_output = decoded_output.replace("<s> ", "<s>")
@@ -1196,12 +1246,14 @@ class RQRAGPipeline(BasicPipeline):
                         final_outputs_batch[i].append(new_path)
                     else:
                         # Extract the query
+                        # 提取查询。
                         pattern = r"(.*?)\[EOS\]"
                         matches = re.findall(pattern, decoded_output, re.DOTALL)
                         query_for_search = matches[-1].strip() if matches else "dummy"
                         queries_for_search.append(query_for_search)
                 
                 # Perform batch retrieval
+                # 执行批量检索。
                 if queries_for_search:
                     batch_search_results = self.retriever.batch_search(queries_for_search)
                     
@@ -1222,7 +1274,9 @@ class RQRAGPipeline(BasicPipeline):
 
     def select_best_path_single_turn(self, final_outputs):
         # After generating all paths, we can select the best answer
+        # 全部路径生成结束后，选择最佳答案。
         # Compute perplexity and confidence for each path
+        # 为各条路径计算困惑度和置信度。
         
         scores = []
         for path in final_outputs:
@@ -1231,7 +1285,9 @@ class RQRAGPipeline(BasicPipeline):
             scores.append((path, confidence))
 
         # Select the path with the highest confidence
+        # 选择置信度最高的路径。
         best_path = max(scores, key = lambda x: x[1])[0]  # x[2] is confidence
+        # 元组的第三个元素是置信度。
         pred = best_path["final_answer"]
 
         return pred, best_path

@@ -8,6 +8,7 @@ import torch
 
 def get_dataset(config):
     """Load dataset from config."""
+    # 按配置加载数据划分；未请求或不存在的划分按实现中的检查逻辑处理。
     SUPPORT_FILES = ["jsonl", "json", "parquet"]
 
     dataset_path = config["dataset_path"]
@@ -40,11 +41,13 @@ def get_dataset(config):
 
 def get_generator(config, **params):
     """Automatically select generator class based on config."""
+    # 根据 framework 和模型架构选择后端；多模态模型转入专用生成器。
 
     if config['framework'] == 'openai':
         return getattr(importlib.import_module("flashrag.generator"), "OpenaiGenerator")(config, **params)
     
     # judge multimodal model
+    # 判断是否为多模态模型。
     with open(os.path.join(config["generator_model_path"], "config.json"), "r") as f:
         model_config = json.load(f)
     arch = model_config['architectures'][0]
@@ -78,8 +81,10 @@ def get_retriever(config):
     Returns:
         Retriever: retriever instance
     """
+    # 优先处理多检索器，再按 BM25、SPLADE 或模型架构选择召回实现。
     if config["use_multi_retriever"]:
         # must load special class for manage multi retriever
+        # 多检索器模式需要加载专门的路由管理类。
         return getattr(importlib.import_module("flashrag.retriever"), "MultiRetrieverRouter")(config)
 
     if config["retrieval_method"] == "bm25":
@@ -101,6 +106,7 @@ def get_retriever(config):
 def get_reranker(config):
     model_path = config["rerank_model_path"]
     # get model config
+    # 读取模型配置。
     model_config = AutoConfig.from_pretrained(model_path)
     arch = model_config.architectures[0]
     if "forsequenceclassification" in arch.lower():
@@ -152,6 +158,7 @@ def get_refiner(config, retriever=None, generator=None):
         refiner_class = "ExtractiveRefiner"
     elif 't5' in arch or 'bart' in arch:
         # `arch` is lower-cased above, so match lower-case names here.
+        # arch 在上方已转为小写，因此这里也用小写名称匹配。
         refiner_class = "AbstractiveRecompRefiner"
     elif "lingua" in refiner_name:
         refiner_class = "LLMLinguaRefiner"
@@ -167,6 +174,7 @@ def get_refiner(config, retriever=None, generator=None):
 
 def hash_object(o) -> str:
     """Returns a character hash code of arbitrary Python objects."""
+    # 序列化对象后计算内容哈希，供缓存等场景构造键。
     import hashlib
     import io
     import dill

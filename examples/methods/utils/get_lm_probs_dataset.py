@@ -1,5 +1,7 @@
 # This file is used for generating LM supervised dataset to finetune retrievers
+# 此文件用于生成语言模型监督数据，以微调检索器。
 # Implementation details are learned from REPLUG:https://arxiv.org/abs/2301.12652
+# 实现细节参考 REPLUG 论文。
 import json
 import random
 
@@ -19,9 +21,11 @@ class LMProbCalculator:
     when LM uses every document retrieved from
     top-k retrieved ones in context
     """
+    # 计算标准答案的似然概率，供检索器监督数据构建使用。
 
     def __init__(self, config):
         # Load your own components
+        # 加载自行配置的组件。
         self.retriever = get_retriever(config)
         self.generator = get_generator(config)
         self.prompt_template = PromptTemplate(config)
@@ -52,11 +56,16 @@ class LMProbCalculator:
 
 def main(
     dataset_name="nq",  # qa dataset
+    # 问答数据集。
     split="test",  # split
+    # 数据划分。
     num=4000,  # number of query-document pairs
+    # 查询与文档配对的数量。
     gpu_id="0",
     output="lmsft.jsonl",  # output path
+    # 输出路径。
     topk=20,  # number of retrieved documents
+    # 召回文档数量。
 ):
     config_dict = {
         "save_note": "replug_lsr",

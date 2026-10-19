@@ -10,21 +10,26 @@ from transformers import AutoTokenizer, AutoModel, AutoConfig
 from flashrag.utils import get_device
 
 _has_printed_instruction = False  # trigger instruction print once
+# 控制检索指令只打印一次。
 
 def convert_numpy(obj: Union[Dict, list, np.ndarray, np.generic]) -> Any:
     """Recursively convert numpy objects in nested dictionaries or lists to native Python types."""
+    # 递归转换 NumPy 数据，避免结果保存时遇到不可序列化的类型。
     if isinstance(obj, dict):
         return {k: convert_numpy(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [convert_numpy(i) for i in obj]
     elif isinstance(obj, np.ndarray):
         return obj.tolist()  # Convert numpy arrays to lists
+        # 将 NumPy 数组转换为列表。
     elif isinstance(obj, (np.integer, np.floating)):
         return obj.item()  # Convert numpy scalars to native Python scalars
+        # 将 NumPy 标量转换为 Python 原生标量。
     elif isinstance(obj, np.float32):
         return float(obj)
     else:
         return obj  # Return the object as-is if it's neither a dict, list, nor numpy type
+        # 不是字典、列表或 NumPy 类型时，原样返回该对象。
 
 
 def judge_zh(input_str: str):
@@ -41,18 +46,22 @@ def judge_zh(input_str: str):
 
 def convert_numpy(obj: Union[Dict, list, np.ndarray, np.generic]) -> Any:
     """Recursively convert numpy objects in nested dictionaries or lists to native Python types."""
+    # 递归转换 NumPy 数据，避免结果保存时遇到不可序列化的类型。
     if isinstance(obj, dict):
         return {k: convert_numpy(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [convert_numpy(i) for i in obj]
     elif isinstance(obj, np.ndarray):
         return obj.tolist()  # Convert numpy arrays to lists
+        # 将 NumPy 数组转换为列表。
     elif isinstance(obj, (np.integer, np.floating)):
         return obj.item()  # Convert numpy scalars to native Python scalars
+        # 将 NumPy 标量转换为 Python 原生标量。
     elif isinstance(obj, np.float32):
         return float(obj)
     else:
         return obj  # Return the object as-is if it's neither a dict, list, nor numpy type
+        # 不是字典、列表或 NumPy 类型时，原样返回该对象。
     
 def load_model(model_path: str, use_fp16: bool = False):
     model_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
@@ -104,6 +113,7 @@ def parse_query(model_name, query_list, instruction=None, is_query=True):
     """
     processing query for different encoders
     """
+    # 根据模型所需的查询指令与标记整理输入文本。
     global _has_printed_instruction
 
     if isinstance(query_list, str):

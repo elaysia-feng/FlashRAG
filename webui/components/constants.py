@@ -8,6 +8,7 @@ METRICS = [
 
 CONPONENTS2ARGKEY = {
     # -------------- Basic Setting --------------
+    # 基础设置。
     "method_name": "method_name",
     "gpu_id": "gpu_id",
     "framework": "framework",
@@ -19,6 +20,7 @@ CONPONENTS2ARGKEY = {
     "index_path": "index_path",
 
     # -------------- Retriever Setting --------------
+    # 检索器设置。
     "instruction": "instruction",
     "retrieval_topk": "retrieval_topk",
     "retrieval_batch_size": "retrieval_batch_size",
@@ -32,6 +34,7 @@ CONPONENTS2ARGKEY = {
     "use_sentence_transformers": "use_sentence_transformer",
 
     # -------------- Reranker Setting --------------
+    # 重排器设置。
     "use_rerank": "use_reranker",
     "rerank_model_name": "rerank_model_name",
     "rerank_model_path": "rerank_model_path",
@@ -41,16 +44,19 @@ CONPONENTS2ARGKEY = {
     "rerank_use_fp16": "rerank_use_fp16",
 
     # -------------- Generator Setting --------------
+    # 生成器设置。
     "generator_max_input_len": "generator_max_input_len",
     "generator_batch_size": "generator_batch_size",
     "gpu_memory_utilization": "gpu_memory_utilization",
     "generate_use_fid": "use_fid",
 
     # -------------- OpenAI Setting --------------
+    # OpenAI 兼容接口设置。
     "api_key": "openai_setting.api_key",
     "base_url": "opeani_setting.base_url",
 
     # -------------- generation_params --------------
+    # 生成参数设置。
     "generate_do_sample": "generation_params.do_sample",
     "generate_max_new_tokens": "generation_params.max_tokens",
     "generate_temperature": "generation_params.temperature",
@@ -58,6 +64,7 @@ CONPONENTS2ARGKEY = {
     "generate_top_k": "generation_params.top_k",
     
     # -------------- Evaluatation Setting --------------
+    # 评估设置。
     "data_dir": "data_dir",
     "save_intermediate_data": "save_intermediate_data",
     "save_dir": "save_dir",
@@ -72,6 +79,7 @@ CONPONENTS2ARGKEY = {
     
     
     # -------------- LLMlingua Setting --------------
+    # LLMLingua 压缩设置。
     "llmlingua_refiner_path": "LongLLMLingua.refiner_model_path",
     "llmlingua_refiner_input_prompt_flag": "LongLLMLingua.llmlingua_config.refiner_input_prompt_flag",
     "llmlingua_rate": "LongLLMLingua.llmlingua_config.rate",
@@ -85,6 +93,7 @@ CONPONENTS2ARGKEY = {
     "llmlingua_chunk_end_tokens": "LongLLMLingua.llmlingua_config.chunk_end_tokens",
     
     # -------------- Recomp Setting --------------
+    # RECOMP 压缩设置。
     "recomp_refiner_path": "Recomp.refiner_model_path",
     "recomp_max_input_length": "Recomp.refiner_max_input_length",
     "recomp_max_output_length": "Recomp.refiner_max_output_length",
@@ -93,16 +102,19 @@ CONPONENTS2ARGKEY = {
     "recomp_encode_max_length": "Recomp.refiner_encode_max_length",
     
     # -------------- Selective-Context Setting --------------
+    # Selective Context 压缩设置。
     "sc_refiner_path": "Selective-Context.refiner_model_path",
     "sc_reduce_ratio": "Selective-Context.sc_config.reduce_ratio",
     "sc_reduce_level": "Selective-Context.sc_config.reduce_level",
     
     # -------------- Retrobust Setting --------------
+    # RetRobust 方法设置。
     "retrobust_generator_lora_path": "Ret-Robust.generator_lora_path",
     "retrobust_max_iter": "Ret-Robust.max_iter",
     "retrobust_single_hop": "Ret-Robust.single_hop",
     
     # -------------- SKR Setting --------------
+    # SKR 方法设置。
     "skr_judger_path": "Skr.judger_config.model_path",
     "skr_training_data_path": "Skr.judger_config.training_data_path",
     "skr_topk": "Skr.judger_config.topk",
@@ -110,6 +122,7 @@ CONPONENTS2ARGKEY = {
     "skr_max_length": "Skr.judger_config.max_length",
     
     # -------------- Self-RAG Setting --------------
+    # Self-RAG 方法设置。
     "selfrag_mode": "Self-RAG.self_rag_setting.mode",
     "selfrag_threshold": "Self-RAG.self_rag_setting.threshold",
     "selfrag_max_depth": "Self-RAG.self_rag_setting.max_depth",
@@ -123,18 +136,22 @@ CONPONENTS2ARGKEY = {
     "selfrag_ignore_cont": "Self-RAG.self_rag_setting.ignore_cont",
     
     # -------------- FLARE Setting --------------
+    # FLARE 方法设置。
     "flare_threshold": "Flare.threshold",
     "flare_look_ahead_steps": "Flare.look_ahead_steps",
     "flare_max_generation_length": "Flare.max_generation_length",
     "flare_max_iter_num": "Flare.max_iter_num",
     
     # -------------- IterRetGen Setting --------------
+    # IterRetGen 方法设置。
     "iterretgen_iter_num": "Iter-Retgen.iter_num",
     
     # -------------- IRCOT Setting --------------
+    # IRCOT 方法设置。
     "ircot_max_iter": "IRCOT.max_iter",
     
     # -------------- Trace Setting --------------
+    # Trace 方法设置。
     "trace_num_examplars": "Trace.num_examplars",
     "trace_max_chain_length": "Trace.max_chain_length",
     "trace_topk_triple_select": "Trace.topk_triple_select",
@@ -145,12 +162,15 @@ CONPONENTS2ARGKEY = {
     "trace_context_type": "Trace.context_type",
     
     # -------------- Spring Setting --------------
+    # SPRING 方法设置。
     "spring_token_embedding_path": "Spring.token_embedding_path",
     
     # -------------- Adaptive-RAG Setting --------------
+    # Adaptive-RAG 方法设置。
     "adaptive_judger_path": "Adaptive-RAG.judger_config.model_path",
     
     # -------------- RQ-RAG Setting --------------
+    # RQ-RAG 方法设置。
     "rqrag_max_depth": "RQ-RAG.max_depth"
 }
 

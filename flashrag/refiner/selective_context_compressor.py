@@ -1,4 +1,5 @@
 # Implementation of Selective-Context, modified from official repo: https://github.com/liyucheng09/Selective_Context
+# Selective Context 实现，基于上方链接指向的官方仓库修改。
 # Licensed under The MIT License
 
 
@@ -48,6 +49,7 @@ class SelectiveContext:
         self.lang = lang
 
         # this means we calculate self-information sentence by sentence
+        # 这表示逐句计算自信息。
         self.sent_level_self_info = True
 
         self._prepare_phrase_tokenizer()
@@ -59,8 +61,11 @@ class SelectiveContext:
 
     def _prepare_phrase_tokenizer(self):
         # we use space to tokenize sentence into phrases
+        # 通过空格将句子拆分为短语。
         # for English, we should use `spacy.load("en_core_web_sm").add_pipe('merge_noun_chunks')`
+        # 英文使用 en_core_web_sm，并加入 merge_noun_chunks 管道合并名词短语。
         # for Chinese, use `nlp = spacy.load('zh_core_web_sm')`` directly
+        # 中文直接使用 zh_core_web_sm 的分词管道。
         lang = self.lang
         if lang == "en":
             self.nlp = spacy.load("en_core_web_lg", disable=["ner"])
@@ -70,6 +75,7 @@ class SelectiveContext:
 
     def _prepare_model(self):
         # Load tokenizer
+        # 加载分词器。
         if self.lang == "zh":
             self.tokenizer = BertTokenizer.from_pretrained("uer/gpt2-chinese-cluecorpussmall")
         elif self.lang == "en":
@@ -100,6 +106,7 @@ class SelectiveContext:
 
     def get_self_information(self, text: str) -> Tuple[List[str], List[float]]:
         # it takes text as input, and return a list of words and a list of self-information scores
+        # 输入文本后，返回词列表及逐词对应的自信息分数。
         raise NotImplementedError
 
     def _get_self_info_via_gpt2(self, text: str) -> Tuple[List[str], List[float]]:
@@ -170,6 +177,7 @@ class SelectiveContext:
                 noun_phrases, noun_phrases_info = self._calculate_lexical_unit(tokens, self_info)
 
                 # We need to add a space before the first noun phrase for every sentence except the first one
+                # 除第一句外，需要在每句话的首个名词短语前补一个空格。
                 if len(all_noun_phrases) != 0:
                     noun_phrases[0] = f" {noun_phrases[0]}"
                 all_noun_phrases.extend(noun_phrases)
@@ -226,7 +234,9 @@ class SelectiveContext:
 
         if self.sent_level_self_info:
             # in this case, the self_info is for each sentence
+            # 此时 self_info 对应每个句子的自信息。
             # we only need to calculate the self_info for each phrase
+            # 这里只需要计算每个短语的自信息。
 
             sent = "".join(tokens)
             # noun_phrases = [chunk.text for chunk in self.nlp(sent).noun_chunks]
@@ -242,6 +252,7 @@ class SelectiveContext:
 
     def self_info_mask(self, sents: List[str], self_info: List[float], mask_level):
         # mask_level: mask sentences, phrases, or tokens
+        # 筛选粒度可以是句子、短语或 token。
         sents_after_mask = []
         masked_sents = []
 
@@ -278,6 +289,7 @@ class SelectiveContext:
         sents = [sent.strip() for sent in sents if sent.strip()]
 
         # You want the reduce happen at sentence level, phrase level, or token level?
+        # 选择在句子级、短语级还是 token 级执行压缩。
         assert reduce_level in [
             "sent",
             "phrase",
@@ -288,6 +300,7 @@ class SelectiveContext:
         lexical_level = {"sent": sent_lus, "phrase": phrase_lus, "token": token_lus}
 
         # context is the reduced context, masked_sents denotes what context has been filtered out
+        # context 是压缩后保留的上下文，masked_sents 是被筛除的内容。
         context, masked_sents = self.self_info_mask(
             lexical_level[reduce_level].text, lexical_level[reduce_level].self_info, reduce_level
         )

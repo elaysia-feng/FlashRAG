@@ -5,6 +5,7 @@ CI/CD pipeline to update the version of the package when a new release is made.
 It uses argparse to parse the command line arguments, which are the new version
 and the path to the package's __init__.py file.
 """
+# 发布流程使用的命令行脚本，解析新版本与目标文件参数并更新包版本。
 
 import argparse
 from pathlib import Path
